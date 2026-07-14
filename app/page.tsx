@@ -1,13 +1,19 @@
+import { Pool } from 'pg';
+
+// Initialize the database connection pool directly on the server
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
 export default async function Home() {
-  let dbTime = "Connecting to database container...";
+  let dbTime = "Connecting directly to database...";
 
   try {
-    // Next.js uses internal fetching to request our local API route
-    const res = await fetch('http://localhost:3000/api/db-test', { cache: 'no-store' });
-    const data = await res.json();
-    dbTime = data.time || `Error: ${data.error}`;
-  } catch (err) {
-    dbTime = "Failed to fetch from backend API.";
+    // Talk to the Docker container directly without an internal HTTP fetch
+    const result = await pool.query('SELECT NOW()');
+    dbTime = result.rows[0].now.toString();
+  } catch (err: any) {
+    dbTime = `Database Error: ${err.message}`;
   }
 
   return (
