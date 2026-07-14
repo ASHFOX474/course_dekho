@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 48, "column": 0}, "map": {"version":3,"sources":["file:///D:/DBMSProject/course_dekho/app/api/db-test/route.ts"],"sourcesContent":["import { Pool } from 'pg';\r\nimport { NextResponse } from 'next/server';\r\n\r\nconst pool = new Pool({\r\n  connectionString: process.env.DATABASE_URL,\r\n});\r\n\r\nexport async function GET() {\r\n  try {\r\n    const result = await pool.query('SELECT NOW()');\r\n    return NextResponse.json({ time: result.rows[0].now });\r\n  } catch (err: any) {\r\n    return NextResponse.json({ error: err.message }, { status: 500 });\r\n  }\r\n}"],"names":["pool","connectionString","process","env","DATABASE_URL","GET","result","query","json","time","rows","now","err","error","message","status"],"mappings":";;;;AAAA;AACA;;;;;;;AAEA,MAAMA,OAAO,IAAI,qJAAI,CAAC;IACpBC,kBAAkBC,QAAQC,GAAG,CAACC,YAAY;AAC5C;AAEO,eAAeC;IACpB,IAAI;QACF,MAAMC,SAAS,MAAMN,KAAKO,KAAK,CAAC;QAChC,OAAO,gJAAY,CAACC,IAAI,CAAC;YAAEC,MAAMH,OAAOI,IAAI,CAAC,EAAE,CAACC,GAAG;QAAC;IACtD,EAAE,OAAOC,KAAU;QACjB,OAAO,gJAAY,CAACJ,IAAI,CAAC;YAAEK,OAAOD,IAAIE,OAAO;QAAC,GAAG;YAAEC,QAAQ;QAAI;IACjE;AACF"}}]
+}

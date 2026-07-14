@@ -1,0 +1,4 @@
+{"timestamp":"00:00:04.422","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:02:32.552","source":"Server","level":"ERROR","message":"⨯ Error: Cannot find module 'pg'"}
+{"timestamp":"00:02:37.585","source":"Server","level":"LOG","message":"○ Compiling /_error ..."}
+{"timestamp":"00:03:56.376","source":"Browser","level":"INFO","message":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}
