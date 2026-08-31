@@ -1,46 +1,103 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { courses, getSemesterById, getUniversityById } from "@/lib/data/academics";
-import { initialProgress } from "@/lib/data/activity";
-import { computeCourseProgress } from "@/lib/queries";
-import { AppShell } from "@/components/layout/AppShell";
-import { ProgressBar } from "@/components/ui/ProgressBar";
 
-const ALL = "All";
+import { AppShell } from "@/components/layout/AppShell";
+import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  listCourses,
+  listSemesters,
+  listUniversities,
+  type CourseSummaryDto,
+  type SemesterSummaryDto,
+  type UniversitySummaryDto,
+} from "@/lib/client/catalog-api";
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unable to load the academic catalog.";
+}
 
 export default function CoursesPage() {
-  const { user } = useAuth();
-  const [universityFilter, setUniversityFilter] = useState(ALL);
-  const [semesterFilter, setSemesterFilter] = useState(ALL);
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const [universities, setUniversities] = useState<UniversitySummaryDto[]>([]);
+  const [semesters, setSemesters] = useState<SemesterSummaryDto[]>([]);
+  const [semestersForUniversityId, setSemestersForUniversityId] = useState("");
+  const [courses, setCourses] = useState<CourseSummaryDto[]>([]);
+  const [universityId, setUniversityId] = useState("");
+  const [semesterId, setSemesterId] = useState("");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [resolvedCourseRequest, setResolvedCourseRequest] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const courseRequest = JSON.stringify([universityId, semesterId, debouncedSearch]);
+  const isCatalogLoading = resolvedCourseRequest !== courseRequest;
+  const visibleCourses = isCatalogLoading ? [] : courses;
+  const visibleSemesters =
+    semestersForUniversityId === universityId ? semesters : [];
 
-  const myProgress = user ? initialProgress.filter((p) => p.userId === user.id) : [];
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
-  const universityNames = useMemo(
-    () => [ALL, ...Array.from(new Set(courses.map((c) => getUniversityById(c.universityId)?.shortName ?? "")))],
-    []
-  );
-  const semesterNames = useMemo(
-    () => [ALL, ...Array.from(new Set(courses.map((c) => getSemesterById(c.semesterId)?.name ?? "")))],
-    []
-  );
+  useEffect(() => {
+    if (isAuthLoading || !user) return;
+    const controller = new AbortController();
 
-  const filteredCourses = courses.filter((course) => {
-    const universityName = getUniversityById(course.universityId)?.shortName ?? "";
-    const semesterName = getSemesterById(course.semesterId)?.name ?? "";
+    listUniversities(controller.signal)
+      .then((response) => {
+        setUniversities(response);
+      })
+      .catch((requestError: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(requestError));
+      });
 
-    if (universityFilter !== ALL && universityName !== universityFilter) return false;
-    if (semesterFilter !== ALL && semesterName !== semesterFilter) return false;
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      if (!course.code.toLowerCase().includes(q) && !course.name.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+    return () => controller.abort();
+  }, [isAuthLoading, user]);
+
+  useEffect(() => {
+    if (!universityId || isAuthLoading || !user) return;
+
+    const controller = new AbortController();
+    listSemesters(universityId, controller.signal)
+      .then((response) => {
+        setSemesters(response);
+        setSemestersForUniversityId(universityId);
+      })
+      .catch((requestError: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(requestError));
+      });
+
+    return () => controller.abort();
+  }, [universityId, isAuthLoading, user]);
+
+  useEffect(() => {
+    if (isAuthLoading || !user) return;
+    const controller = new AbortController();
+
+    listCourses(
+      {
+        universityId: universityId || undefined,
+        semesterId: semesterId || undefined,
+        query: debouncedSearch || undefined,
+      },
+      controller.signal
+    )
+      .then((response) => {
+        setCourses(response);
+        setError(null);
+      })
+      .catch((requestError: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(requestError));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setResolvedCourseRequest(courseRequest);
+      });
+
+    return () => controller.abort();
+  }, [courseRequest, debouncedSearch, isAuthLoading, semesterId, universityId, user]);
 
   return (
     <AppShell title="Courses">
@@ -50,77 +107,88 @@ export default function CoursesPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <select
-              value={universityFilter}
-              onChange={(e) => setUniversityFilter(e.target.value)}
+              value={universityId}
+              onChange={(event) => {
+                setUniversityId(event.target.value);
+                setSemesterId("");
+              }}
+              aria-label="Filter by university"
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus:border-violet-400 focus:outline-none"
             >
-              {universityNames.map((name) => (
-                <option key={name} value={name}>
-                  {name === ALL ? "All Universities" : name}
+              <option value="">All Universities</option>
+              {universities.map((university) => (
+                <option key={university.id} value={university.id}>
+                  {university.shortName}
                 </option>
               ))}
             </select>
 
             <select
-              value={semesterFilter}
-              onChange={(e) => setSemesterFilter(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus:border-violet-400 focus:outline-none"
+              value={semesterId}
+              onChange={(event) => setSemesterId(event.target.value)}
+              disabled={!universityId}
+              aria-label="Filter by semester"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:bg-slate-100 focus:border-violet-400 focus:outline-none"
             >
-              {semesterNames.map((name) => (
-                <option key={name} value={name}>
-                  {name === ALL ? "All Semesters" : name}
+              <option value="">All Semesters</option>
+              {visibleSemesters.map((semester) => (
+                <option key={semester.id} value={semester.id}>
+                  {semester.name}
                 </option>
               ))}
             </select>
 
             <div className="relative">
-              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(event) => setSearch(event.target.value)}
+                maxLength={100}
                 placeholder="Search courses..."
+                aria-label="Search courses"
                 className="rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-violet-400 focus:outline-none"
               />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredCourses.map((course) => {
-            const university = getUniversityById(course.universityId);
-            const semester = getSemesterById(course.semesterId);
-            const isEnrolled = myProgress.some((p) => p.courseId === course.id);
-            const percent = isEnrolled ? computeCourseProgress(myProgress, course.id) : null;
+        {!isCatalogLoading && error && (
+          <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {error}
+          </p>
+        )}
 
-            return (
-              <Link
-                key={course.id}
-                href={`/courses/${course.id}`}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-violet-300"
-              >
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">{course.code}</p>
-                    <p className="text-sm text-slate-600">{course.name}</p>
-                  </div>
-                </div>
-                <p className="mb-3 text-xs text-slate-400">
-                  {university?.shortName} &middot; {semester?.name}
-                </p>
-                {percent !== null ? (
-                  <>
-                    <ProgressBar percent={percent} />
-                    <p className="mt-1 text-right text-xs font-medium text-slate-500">{percent}%</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-slate-400">Not started yet</p>
-                )}
-              </Link>
-            );
-          })}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy={isCatalogLoading}>
+          {visibleCourses.map((course) => (
+            <Link
+              key={course.id}
+              href={`/courses/${course.id}`}
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-violet-300"
+            >
+              <p className="text-sm font-bold text-slate-900">{course.code}</p>
+              <p className="text-sm text-slate-600">{course.name}</p>
+              <p className="mt-3 text-xs text-slate-400">
+                {course.university.shortName} &middot; {course.semester.name}
+              </p>
+              <p className="mt-3 line-clamp-2 text-xs text-slate-500">
+                {course.description || "Open the database-ordered course roadmap."}
+              </p>
+            </Link>
+          ))}
 
-          {filteredCourses.length === 0 && (
-            <p className="col-span-full py-10 text-center text-sm text-slate-400">No courses match your filters.</p>
+          {isCatalogLoading && (
+            <p className="col-span-full py-10 text-center text-sm text-slate-400">
+              Loading courses...
+            </p>
+          )}
+
+          {!isCatalogLoading && !error && visibleCourses.length === 0 && (
+            <p className="col-span-full py-10 text-center text-sm text-slate-400">
+              No courses match your filters.
+            </p>
           )}
         </div>
       </div>

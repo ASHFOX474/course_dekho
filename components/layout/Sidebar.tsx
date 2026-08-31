@@ -81,7 +81,7 @@ export function Sidebar() {
           <SidebarLink key={item.href} item={item} active={pathname === item.href} />
         ))}
         <button
-          onClick={logout}
+          onClick={() => void logout()}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-rose-600"
         >
           <LogOut size={17} />

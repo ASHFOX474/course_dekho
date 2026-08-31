@@ -23,18 +23,16 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { resources as initialResources } from "@/lib/data/resources";
 import { initialSubmissions } from "@/lib/data/submissions";
 import { initialBookmarks } from "@/lib/data/bookmarks";
+import {
+  WorkflowPolicyError,
+  approvePendingSubmission,
+  createPendingSubmission,
+  rejectPendingSubmission,
+  type NewSubmissionInput,
+} from "@/lib/domain/critical-behavior";
 import { Bookmark, BookmarkTargetType, Resource, ResourceType, Submission } from "@/lib/types";
 
-/** Fields the teacher fills in when creating a new submission. */
-export interface NewSubmissionInput {
-  resourceType: ResourceType;
-  title: string;
-  description: string;
-  courseId: string;
-  courseCode: string;
-  topicId: string;
-  topicName: string;
-}
+export type { NewSubmissionInput } from "@/lib/domain/critical-behavior";
 
 /** Fields needed to bookmark something (id/createdAt are generated). */
 export interface NewBookmarkInput {
@@ -66,78 +64,78 @@ let nextId = 1000; // simple incrementing id generator for newly-created rows
 export function DataProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
 
-  const [resources, setResources] = useState<Resource[]>(initialResources);
-  const [submissions, setSubmissions] = useState<Submission[]>(initialSubmissions);
+  const [contentState, setContentState] = useState<{ resources: Resource[]; submissions: Submission[] }>({
+    resources: initialResources,
+    submissions: initialSubmissions,
+  });
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(initialBookmarks);
+  const { resources, submissions } = contentState;
 
   // ---- Teacher: create a new submission (status starts "pending") ----
   function addSubmission(input: NewSubmissionInput) {
     if (!user) return;
 
-    const submission: Submission = {
-      id: `sub-${nextId++}`,
-      teacherId: user.id,
-      teacherName: user.name,
-      status: "pending",
-      submittedAt: new Date().toISOString(),
-      ...input,
-    };
+    const submissionId = `sub-${nextId++}`;
+    const now = new Date().toISOString();
 
-    setSubmissions((prev) => [submission, ...prev]);
+    setContentState((prev) => {
+      try {
+        const submission = createPendingSubmission(user, input, { submissionId, now });
+        return { ...prev, submissions: [submission, ...prev.submissions] };
+      } catch (error) {
+        if (error instanceof WorkflowPolicyError) return prev;
+        throw error;
+      }
+    });
   }
 
   // ---- Admin: approve a pending submission -> publishes a live Resource ----
   function approveSubmission(submissionId: string) {
     if (!user) return;
 
-    setSubmissions((prev) =>
-      prev.map((s) =>
-        s.id === submissionId
-          ? { ...s, status: "approved", reviewedById: user.id, reviewedByName: user.name, reviewedAt: new Date().toISOString() }
-          : s
-      )
-    );
+    const resourceId = `res-${nextId++}`;
+    const now = new Date().toISOString();
 
-    const submission = submissions.find((s) => s.id === submissionId);
-    if (!submission) return;
+    setContentState((prev) => {
+      const submission = prev.submissions.find((item) => item.id === submissionId);
+      if (!submission) return prev;
 
-    const newResource: Resource = {
-      id: `res-${nextId++}`,
-      topicId: submission.topicId,
-      courseId: submission.courseId,
-      type: submission.resourceType,
-      title: submission.title,
-      description: submission.description,
-      addedById: submission.teacherId,
-      addedByName: submission.teacherName,
-      year: new Date().getFullYear(),
-      topicsCovered: [],
-      views: 0,
-      downloads: 0,
-      uploadedAt: new Date().toISOString(),
-    };
-
-    setResources((prev) => [newResource, ...prev]);
+      try {
+        const approved = approvePendingSubmission(user, submission, { resourceId, now });
+        return {
+          resources: [approved.resource, ...prev.resources],
+          submissions: prev.submissions.map((item) =>
+            item.id === submissionId ? approved.submission : item
+          ),
+        };
+      } catch (error) {
+        if (error instanceof WorkflowPolicyError) return prev;
+        throw error;
+      }
+    });
   }
 
   // ---- Admin: reject a pending submission (with a reason the teacher can see) ----
   function rejectSubmission(submissionId: string, reason: string) {
     if (!user) return;
 
-    setSubmissions((prev) =>
-      prev.map((s) =>
-        s.id === submissionId
-          ? {
-              ...s,
-              status: "rejected",
-              reviewedById: user.id,
-              reviewedByName: user.name,
-              reviewedAt: new Date().toISOString(),
-              rejectionReason: reason,
-            }
-          : s
-      )
-    );
+    const now = new Date().toISOString();
+
+    setContentState((prev) => {
+      const submission = prev.submissions.find((item) => item.id === submissionId);
+      if (!submission) return prev;
+
+      try {
+        const rejected = rejectPendingSubmission(user, submission, reason, now);
+        return {
+          ...prev,
+          submissions: prev.submissions.map((item) => (item.id === submissionId ? rejected : item)),
+        };
+      } catch (error) {
+        if (error instanceof WorkflowPolicyError) return prev;
+        throw error;
+      }
+    });
   }
 
   // ---- Bookmarks (any logged-in user, any target type) ----

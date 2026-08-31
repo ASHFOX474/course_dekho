@@ -1,8 +1,9 @@
-# CourseDekho — Frontend
+# CourseDekho
 
 A centralized course/resource management platform for CSE students in Bangladesh.
-This repo is the **frontend only**, built with realistic mock data standing in for
-the Postgres database described in the project's ERD.
+Authentication and the read-only academic browsing path are PostgreSQL-backed.
+Learning activity and contribution/review screens still use prototype state while
+their API migrations are completed.
 
 ## Tech stack
 
@@ -13,8 +14,8 @@ the Postgres database described in the project's ERD.
 | UI          | React 19                                   |
 | Styling     | Tailwind CSS v4                            |
 | Icons       | lucide-react                               |
-| Data        | In-memory mock data (`lib/data/`) — no DB calls yet |
-| Auth        | Hand-rolled context, demo accounts, `localStorage` session |
+| Data        | PostgreSQL auth + academic reads; remaining workflows use mock state |
+| Auth        | Scrypt passwords and opaque HTTP-only PostgreSQL sessions |
 
 No extra state-management library (Redux/Zustand/etc.) is used on purpose —
 everything is plain React Context + `useState`, so it's easy to read and explain.
@@ -25,7 +26,11 @@ everything is plain React Context + `useState`, so it's easy to read and explain
 # 1. install dependencies
 npm install
 
-# 2. run the dev server
+# 2. configure DATABASE_URL, then initialize the development database
+npm run db:migrate
+npm run db:seed
+
+# 3. run the dev server
 npm run dev
 ```
 
@@ -42,8 +47,8 @@ npx tsc --noEmit  # TypeScript check only
 
 ## Demo accounts
 
-There's no real signup flow — log in with one of these (or use the
-"Quick demo login" buttons on the login page itself):
+After applying the canonical development seed, log in with one of these (or use
+the "Quick demo login" buttons on the login page itself):
 
 | Role    | Username | Password    |
 |---------|----------|-------------|
@@ -80,7 +85,11 @@ lib/
                            submissions, bookmarks, progress, access history)
   queries.ts               Derived/computed values (course progress %, dashboard stats) —
                            this is the layer you'd swap for real API calls later
-  auth/AuthContext.tsx      Login/logout, session persisted in localStorage
+  auth/AuthContext.tsx      Login/logout/session calls to the HTTP-only cookie API
+  client/catalog-api.ts     Typed academic API client and display adapters
+  server/catalog/           Protected academic read services and HTTP handlers
+  server/auth/              Password hashing, sessions, authorization, handlers
+  server/repositories/      Typed PostgreSQL repositories, including auth
   store/DataContext.tsx     Holds the data that can change at runtime (submissions,
                            resources, bookmarks) and the functions that mutate it
   utils.ts                 Small helpers (date formatting, class name merging, etc.)
@@ -96,15 +105,34 @@ lib/
 - **Admin** — full control: approves/rejects submissions, and (conceptually)
   manages the academic structure (University → Semester → Course → Topic).
 
-`components/layout/AppShell.tsx` enforces this in the UI: pages like
+`components/layout/AppShell.tsx` mirrors this in the UI: pages like
 `/teacher/submissions` and `/admin/approvals` pass `allowedRoles={["teacher"]}` /
 `["admin"]`, and AppShell shows an "Access restricted" panel to anyone else.
 
-## Important: this is a frontend-only prototype
+Server route handlers—not `AppShell`—are the security boundary. Every protected
+backend handler must resolve the cookie session and assert the allowed role.
 
-- All data lives in memory (`lib/data/*` + React state). **Refreshing the page
-  resets anything you changed** (new submissions, approvals, bookmarks) —
-  there is no backend/database call yet.
-- The `lib/queries.ts` layer is deliberately written so it can be swapped for
-  real `fetch()` calls to a Postgres-backed API later without changing any
-  page components.
+## Current prototype boundary
+
+- Universities, semesters, courses, ordered topics, and approved active resources
+  on the course/resource pages come from protected PostgreSQL APIs.
+- Submission/review, bookmarks, progress, history, and solved-question state still
+  live in `lib/data/*` + React state. **Refreshing the page resets those changes.**
+- File download/preview remains disabled until a signed-file delivery API exists;
+  raw storage metadata is not exposed through the catalog DTO.
+
+## PostgreSQL schema baseline
+
+The reconciled PostgreSQL schema and forward-only migration tooling now live in
+[`database/`](database/README.md). Authentication and academic reads are wired to
+it; the remaining workflow UI is not.
+Use `npm run db:status`, `npm run db:verify`, `npm run db:migrate`, and
+`npm run db:seed` as documented there.
+
+## Backend foundation
+
+Typed database rows, parameterized queries, repositories, transaction handling,
+request validation, domain models, API DTOs, and safe error mapping live under
+`lib/server/`. See the [backend foundation guide](docs/backend/foundations.md).
+Authentication and read-only academic catalog routes are included. Transactional
+submission/review, enrollment, progress, and bookmark APIs remain to be implemented.

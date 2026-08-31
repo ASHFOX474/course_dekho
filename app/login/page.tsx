@@ -22,15 +22,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Already logged in? Skip straight to the dashboard.
   useEffect(() => {
     if (!isLoading && user) router.replace("/dashboard");
   }, [isLoading, user, router]);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const result = login(username, password);
+    setIsSubmitting(true);
+    setError("");
+    const result = await login(username, password);
+    setIsSubmitting(false);
     if (!result.success) {
       setError(result.error ?? "Something went wrong.");
       return;
@@ -38,12 +42,18 @@ export default function LoginPage() {
     router.push("/dashboard");
   }
 
-  function handleDemoLogin(demoUsername: string, demoPassword: string) {
+  async function handleDemoLogin(demoUsername: string, demoPassword: string) {
     setUsername(demoUsername);
     setPassword(demoPassword);
     setError("");
-    const result = login(demoUsername, demoPassword);
-    if (result.success) router.push("/dashboard");
+    setIsSubmitting(true);
+    const result = await login(demoUsername, demoPassword);
+    setIsSubmitting(false);
+    if (!result.success) {
+      setError(result.error ?? "Something went wrong.");
+      return;
+    }
+    router.push("/dashboard");
   }
 
   return (
@@ -132,9 +142,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-violet-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
+              disabled={isSubmitting}
+              className="w-full rounded-lg bg-violet-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
             >
-              Login
+              {isSubmitting ? "Signing in..." : "Login"}
             </button>
           </form>
 
@@ -171,7 +182,8 @@ export default function LoginPage() {
                 <button
                   key={account.role}
                   type="button"
-                  onClick={() => handleDemoLogin(account.username, account.password)}
+                  disabled={isSubmitting}
+                  onClick={() => void handleDemoLogin(account.username, account.password)}
                   className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100"
                 >
                   {account.label}

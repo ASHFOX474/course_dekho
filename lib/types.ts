@@ -31,7 +31,6 @@ export interface AppUser {
   name: string;
   username: string;
   email: string;
-  password: string; // demo-only: real apps must never store/compare plain text passwords
   role: UserRole;
   avatarInitials: string;
 

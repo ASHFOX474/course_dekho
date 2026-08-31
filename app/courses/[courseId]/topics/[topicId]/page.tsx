@@ -1,16 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Bookmark, ChevronRight, Download } from "lucide-react";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { getCourseById, getTopicById } from "@/lib/data/academics";
-import { useData } from "@/lib/store/DataContext";
-import { ResourceType } from "@/lib/types";
-import { cn } from "@/lib/utils";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { ResourceTypeIcon } from "@/components/ui/ResourceTypeIcon";
+import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  getCourse,
+  listCourseTopics,
+  listTopicResources,
+  resourceTypeLabel,
+  type ApprovedResourceDto,
+  type CourseSummaryDto,
+  type TopicSummaryDto,
+} from "@/lib/client/catalog-api";
+import { useData } from "@/lib/store/DataContext";
+import type { ResourceType } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const ALL = "All";
 type FilterTab = typeof ALL | ResourceType;
@@ -26,27 +35,72 @@ const filterTabs: FilterTab[] = [
   "LeetCode Problem",
 ];
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unable to load topic resources.";
+}
+
 export default function TopicResourcesPage() {
   const params = useParams<{ courseId: string; topicId: string }>();
-  const course = getCourseById(params.courseId);
-  const topic = getTopicById(params.topicId);
-
-  const { user } = useAuth();
-  const { resources, isBookmarked, toggleBookmark } = useData();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const { isBookmarked, toggleBookmark } = useData();
+  const [course, setCourse] = useState<CourseSummaryDto | null>(null);
+  const [topic, setTopic] = useState<TopicSummaryDto | null>(null);
+  const [resources, setResources] = useState<ApprovedResourceDto[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterTab>(ALL);
+  const [resolvedRequest, setResolvedRequest] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const requestKey = `${params.courseId}:${params.topicId}`;
+  const isLoading = resolvedRequest !== requestKey;
 
-  const topicResources = useMemo(
-    () => resources.filter((r) => r.topicId === params.topicId),
-    [resources, params.topicId]
+  useEffect(() => {
+    if (isAuthLoading || !user) return;
+    const controller = new AbortController();
+
+    Promise.all([
+      getCourse(params.courseId, controller.signal),
+      listCourseTopics(params.courseId, controller.signal),
+      listTopicResources(params.topicId, controller.signal),
+    ])
+      .then(([courseResponse, topicResponse, resourceResponse]) => {
+        const matchingTopic = topicResponse.find((item) => item.id === params.topicId);
+        if (!matchingTopic) throw new Error("Topic not found in this course.");
+        setCourse(courseResponse);
+        setTopic(matchingTopic);
+        setResources(resourceResponse);
+        setError(null);
+      })
+      .catch((requestError: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(requestError));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setResolvedRequest(requestKey);
+      });
+
+    return () => controller.abort();
+  }, [isAuthLoading, params.courseId, params.topicId, requestKey, user]);
+
+  const visibleResources = useMemo(
+    () =>
+      activeFilter === ALL
+        ? resources
+        : resources.filter((resource) => resourceTypeLabel(resource.type) === activeFilter),
+    [activeFilter, resources]
   );
 
-  const visibleResources =
-    activeFilter === ALL ? topicResources : topicResources.filter((r) => r.type === activeFilter);
+  if (isLoading || isAuthLoading) {
+    return (
+      <AppShell title="Resources">
+        <p className="text-sm text-slate-400">Loading approved resources...</p>
+      </AppShell>
+    );
+  }
 
-  if (!course || !topic) {
+  if (!course || !topic || error) {
     return (
       <AppShell title="Not found">
-        <p className="text-sm text-slate-500">We couldn&apos;t find that topic.</p>
+        <p role="alert" className="text-sm text-slate-500">
+          {error ?? "We couldn't find that topic."}
+        </p>
       </AppShell>
     );
   }
@@ -54,7 +108,6 @@ export default function TopicResourcesPage() {
   return (
     <AppShell title={topic.name}>
       <div className="space-y-5">
-        {/* Breadcrumb */}
         <p className="flex flex-wrap items-center gap-1.5 text-xs text-slate-400">
           <Link href="/courses" className="hover:text-violet-600">
             Courses
@@ -71,14 +124,16 @@ export default function TopicResourcesPage() {
 
         <div>
           <h2 className="text-lg font-bold text-slate-900">{topic.name}</h2>
-          <p className="text-sm text-slate-500">Browse all resources for this topic</p>
+          <p className="text-sm text-slate-500">
+            Browse approved, active resources for this topic
+          </p>
         </div>
 
-        {/* Filter tabs */}
         <div className="flex flex-wrap gap-2">
           {filterTabs.map((filter) => (
             <button
               key={filter}
+              type="button"
               onClick={() => setActiveFilter(filter)}
               className={cn(
                 "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
@@ -92,7 +147,7 @@ export default function TopicResourcesPage() {
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
               <tr>
@@ -105,6 +160,7 @@ export default function TopicResourcesPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {visibleResources.map((resource) => {
+                const displayType = resourceTypeLabel(resource.type);
                 const bookmarked = user ? isBookmarked("resource", resource.id) : false;
                 return (
                   <tr key={resource.id} className="hover:bg-slate-50">
@@ -113,23 +169,24 @@ export default function TopicResourcesPage() {
                         href={`/resources/${resource.id}`}
                         className="flex items-center gap-2 font-medium text-slate-700 hover:text-violet-700"
                       >
-                        <ResourceTypeIcon type={resource.type} />
+                        <ResourceTypeIcon type={displayType} />
                         {resource.title}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-500">{resource.type}</td>
-                    <td className="px-4 py-3 text-slate-500">{resource.addedByName}</td>
+                    <td className="px-4 py-3 text-slate-500">{displayType}</td>
+                    <td className="px-4 py-3 text-slate-500">{resource.addedBy.name}</td>
                     <td className="px-4 py-3 text-slate-500">{resource.year ?? "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          type="button"
                           onClick={() =>
                             toggleBookmark({
                               targetType: "resource",
                               targetId: resource.id,
                               title: resource.title,
                               subtitle: `${course.code} > ${topic.name}`,
-                              resourceType: resource.type,
+                              resourceType: displayType,
                             })
                           }
                           title={bookmarked ? "Remove bookmark" : "Bookmark this resource"}
@@ -140,7 +197,11 @@ export default function TopicResourcesPage() {
                         >
                           <Bookmark size={15} fill={bookmarked ? "currentColor" : "none"} />
                         </button>
-                        <button title="Download" className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100">
+                        <button
+                          type="button"
+                          title="Download"
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100"
+                        >
                           <Download size={15} />
                         </button>
                       </div>
@@ -152,7 +213,7 @@ export default function TopicResourcesPage() {
               {visibleResources.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">
-                    No resources of this type yet.
+                    No approved active resources of this type yet.
                   </td>
                 </tr>
               )}

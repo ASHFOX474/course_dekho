@@ -6,7 +6,13 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:migrate": "node scripts/db/migrate.mjs",
+    "db:status": "node scripts/db/migrate.mjs --status",
+    "db:seed": "node scripts/db/seed.mjs",
+    "db:verify": "node scripts/db/verify.mjs",
+    "test": "node --test tests/characterization/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include='lib/domain/critical-behavior.ts' --test-coverage-include='lib/server/**/*.ts' --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 tests/characterization/*.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.31.0",

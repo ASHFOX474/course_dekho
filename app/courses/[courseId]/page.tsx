@@ -1,49 +1,97 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { CheckCircle2, ChevronRight, Circle } from "lucide-react";
-import { useAuth } from "@/lib/auth/AuthContext";
-import { getCourseById, getTopicsByCourse } from "@/lib/data/academics";
-import { initialProgress } from "@/lib/data/activity";
-import { useData } from "@/lib/store/DataContext";
-import { getTopicProgress } from "@/lib/queries";
-import { cn } from "@/lib/utils";
+import { ChevronRight, Circle } from "lucide-react";
+
 import { AppShell } from "@/components/layout/AppShell";
-import { CircularProgress } from "@/components/ui/CircularProgress";
 import { ResourceTypeIcon } from "@/components/ui/ResourceTypeIcon";
+import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  getCourse,
+  listCourseResources,
+  listCourseTopics,
+  resourceTypeLabel,
+  type ApprovedResourceDto,
+  type CourseSummaryDto,
+  type TopicSummaryDto,
+} from "@/lib/client/catalog-api";
+import { cn } from "@/lib/utils";
 
 type Tab = "roadmap" | "resources" | "announcements";
 
 const announcements = [
-  { title: "Midterm exam schedule released", date: "2024-05-12", body: "Check the university notice board for room assignments." },
-  { title: "New Graph resources added", date: "2024-05-05", body: "A fresh set of BFS/DFS practice problems has been uploaded to the Graph topic." },
+  {
+    title: "Midterm exam schedule released",
+    date: "2024-05-12",
+    body: "Check the university notice board for room assignments.",
+  },
+  {
+    title: "New Graph resources added",
+    date: "2024-05-05",
+    body: "A fresh set of BFS/DFS practice problems has been uploaded to the Graph topic.",
+  },
 ];
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unable to load this course.";
+}
 
 export default function CourseRoadmapPage() {
   const params = useParams<{ courseId: string }>();
-  const course = getCourseById(params.courseId);
-  const topics = getTopicsByCourse(params.courseId);
-
-  const { user } = useAuth();
-  const { resources } = useData();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const [course, setCourse] = useState<CourseSummaryDto | null>(null);
+  const [topics, setTopics] = useState<TopicSummaryDto[]>([]);
+  const [resources, setResources] = useState<ApprovedResourceDto[]>([]);
   const [tab, setTab] = useState<Tab>("roadmap");
-  const [selectedTopicId, setSelectedTopicId] = useState(topics[0]?.id);
+  const [selectedTopicId, setSelectedTopicId] = useState("");
+  const [resolvedCourseId, setResolvedCourseId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const isLoading = resolvedCourseId !== params.courseId;
 
-  const myProgress = user ? initialProgress.filter((p) => p.userId === user.id) : [];
-  const selectedTopic = topics.find((t) => t.id === selectedTopicId) ?? topics[0];
-  const selectedProgress = selectedTopic ? getTopicProgress(myProgress, selectedTopic.id) : undefined;
+  useEffect(() => {
+    if (isAuthLoading || !user) return;
+    const controller = new AbortController();
 
-  const courseResources = useMemo(
-    () => resources.filter((r) => r.courseId === params.courseId),
-    [resources, params.courseId]
-  );
+    Promise.all([
+      getCourse(params.courseId, controller.signal),
+      listCourseTopics(params.courseId, controller.signal),
+      listCourseResources(params.courseId, controller.signal),
+    ])
+      .then(([courseResponse, topicResponse, resourceResponse]) => {
+        setCourse(courseResponse);
+        setTopics(topicResponse);
+        setResources(resourceResponse);
+        setError(null);
+      })
+      .catch((requestError: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(requestError));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setResolvedCourseId(params.courseId);
+      });
 
-  if (!course) {
+    return () => controller.abort();
+  }, [isAuthLoading, params.courseId, user]);
+
+  const selectedTopic =
+    topics.find((topic) => topic.id === selectedTopicId) ?? topics[0];
+
+  if (isLoading || isAuthLoading) {
+    return (
+      <AppShell title="Course">
+        <p className="text-sm text-slate-400">Loading course roadmap...</p>
+      </AppShell>
+    );
+  }
+
+  if (!course || error) {
     return (
       <AppShell title="Course not found">
-        <p className="text-sm text-slate-500">We couldn&apos;t find that course.</p>
+        <p role="alert" className="text-sm text-slate-500">
+          {error ?? "We couldn't find that course."}
+        </p>
       </AppShell>
     );
   }
@@ -51,7 +99,6 @@ export default function CourseRoadmapPage() {
   return (
     <AppShell title={course.code}>
       <div className="space-y-5">
-        {/* Breadcrumb */}
         <p className="flex items-center gap-1.5 text-xs text-slate-400">
           <Link href="/courses" className="hover:text-violet-600">
             Courses
@@ -60,38 +107,42 @@ export default function CourseRoadmapPage() {
           <span className="text-slate-600">{course.code}</span>
         </p>
 
-        <h2 className="text-lg font-bold text-slate-900">
-          {course.code}: {course.name}
-        </h2>
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">
+            {course.code}: {course.name}
+          </h2>
+          {course.description && (
+            <p className="mt-1 max-w-3xl text-sm text-slate-500">{course.description}</p>
+          )}
+        </div>
 
-        {/* Tabs */}
         <div className="flex gap-1 border-b border-slate-200">
-          {(["roadmap", "resources", "announcements"] as Tab[]).map((t) => (
+          {(["roadmap", "resources", "announcements"] as Tab[]).map((item) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={item}
+              type="button"
+              onClick={() => setTab(item)}
               className={cn(
                 "border-b-2 px-3 pb-2.5 text-sm font-medium capitalize transition-colors",
-                tab === t ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-700"
+                tab === item
+                  ? "border-violet-600 text-violet-700"
+                  : "border-transparent text-slate-500 hover:text-slate-700"
               )}
             >
-              {t}
+              {item}
             </button>
           ))}
         </div>
 
         {tab === "roadmap" && (
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_1fr]">
-            {/* Topic list */}
             <div className="space-y-1.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
               {topics.map((topic) => {
-                const progress = getTopicProgress(myProgress, topic.id);
-                const percent = progress?.progressPercent ?? 0;
                 const isSelected = topic.id === selectedTopic?.id;
-
                 return (
                   <button
                     key={topic.id}
+                    type="button"
                     onClick={() => setSelectedTopicId(topic.id)}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
@@ -101,47 +152,56 @@ export default function CourseRoadmapPage() {
                     <span
                       className={cn(
                         "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                        percent === 100 ? "bg-emerald-100 text-emerald-700" : isSelected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"
+                        isSelected
+                          ? "bg-violet-600 text-white"
+                          : "bg-slate-100 text-slate-500"
                       )}
                     >
                       {topic.sequenceOrder}
                     </span>
-                    <span className={cn("flex-1 text-sm font-medium", isSelected ? "text-violet-700" : "text-slate-700")}>
+                    <span
+                      className={cn(
+                        "flex-1 text-sm font-medium",
+                        isSelected ? "text-violet-700" : "text-slate-700"
+                      )}
+                    >
                       {topic.name}
                     </span>
-                    {percent === 100 ? (
-                      <CheckCircle2 size={16} className="text-emerald-500" />
-                    ) : percent > 0 ? (
-                      <span className="text-xs font-semibold text-violet-600">{percent}%</span>
-                    ) : (
-                      <Circle size={14} className="text-slate-300" />
-                    )}
+                    <Circle size={14} className="text-slate-300" />
                   </button>
                 );
               })}
+
+              {topics.length === 0 && (
+                <p className="px-3 py-6 text-center text-sm text-slate-400">
+                  No active topics are available.
+                </p>
+              )}
             </div>
 
-            {/* Selected topic detail */}
-            {selectedTopic && (
+            {selectedTopic ? (
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">{selectedTopic.name}</h3>
-                    <p className="mt-1 max-w-md text-sm text-slate-500">{selectedTopic.description}</p>
-                  </div>
-                  <CircularProgress percent={selectedProgress?.progressPercent ?? 0} sublabel="Complete" />
-                </div>
+                <h3 className="text-base font-bold text-slate-900">{selectedTopic.name}</h3>
+                <p className="mt-1 max-w-md text-sm text-slate-500">
+                  {selectedTopic.description}
+                </p>
 
                 <div className="my-5 border-t border-slate-100" />
 
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Topics in this section</p>
-                <ul className="mb-5 space-y-2">
-                  {selectedTopic.subtopics.map((sub) => (
-                    <li key={sub} className="text-sm text-slate-600">
-                      {sub}
-                    </li>
-                  ))}
-                </ul>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Topics in this section
+                </p>
+                {selectedTopic.subtopics.length > 0 ? (
+                  <ul className="mb-5 space-y-2">
+                    {selectedTopic.subtopics.map((subtopic) => (
+                      <li key={subtopic} className="text-sm text-slate-600">
+                        {subtopic}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mb-5 text-sm text-slate-400">No active subtopics.</p>
+                )}
 
                 <Link
                   href={`/courses/${course.id}/topics/${selectedTopic.id}`}
@@ -150,12 +210,16 @@ export default function CourseRoadmapPage() {
                   View Resources
                 </Link>
               </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-400 shadow-sm">
+                This course does not have an active roadmap yet.
+              </div>
             )}
           </div>
         )}
 
         {tab === "resources" && (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
                 <tr>
@@ -166,22 +230,33 @@ export default function CourseRoadmapPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {courseResources.map((resource) => {
-                  const topic = topics.find((t) => t.id === resource.topicId);
+                {resources.map((resource) => {
+                  const topic = topics.find((item) => item.id === resource.topicId);
+                  const displayType = resourceTypeLabel(resource.type);
                   return (
                     <tr key={resource.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <Link href={`/resources/${resource.id}`} className="flex items-center gap-2 font-medium text-slate-700 hover:text-violet-700">
-                          <ResourceTypeIcon type={resource.type} />
+                        <Link
+                          href={`/resources/${resource.id}`}
+                          className="flex items-center gap-2 font-medium text-slate-700 hover:text-violet-700"
+                        >
+                          <ResourceTypeIcon type={displayType} />
                           {resource.title}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-slate-500">{resource.type}</td>
+                      <td className="px-4 py-3 text-slate-500">{displayType}</td>
                       <td className="px-4 py-3 text-slate-500">{topic?.name ?? "—"}</td>
-                      <td className="px-4 py-3 text-slate-500">{resource.addedByName}</td>
+                      <td className="px-4 py-3 text-slate-500">{resource.addedBy.name}</td>
                     </tr>
                   );
                 })}
+                {resources.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-400">
+                      No approved active resources are available.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -189,10 +264,18 @@ export default function CourseRoadmapPage() {
 
         {tab === "announcements" && (
           <div className="space-y-3">
-            {announcements.map((a) => (
-              <div key={a.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p className="text-sm font-semibold text-slate-900">{a.title}</p>
-                <p className="mt-1 text-sm text-slate-500">{a.body}</p>
+            {announcements.map((announcement) => (
+              <div
+                key={announcement.title}
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-900">
+                    {announcement.title}
+                  </p>
+                  <time className="text-xs text-slate-400">{announcement.date}</time>
+                </div>
+                <p className="mt-1 text-sm text-slate-500">{announcement.body}</p>
               </div>
             ))}
           </div>

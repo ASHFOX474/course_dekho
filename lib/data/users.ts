@@ -7,9 +7,9 @@
  * ERD. There is ONE demo account per role so you can log in and show
  * all three permission levels during your presentation:
  *
- *   Student -> username: rafiul   password: student123
- *   Teacher -> username: sharif   password: teacher123
- *   Admin   -> username: nusrat   password: admin123
+ * These display records contain no credentials. The separate demoAccounts
+ * shortcuts match the canonical development seed and are not authentication
+ * storage.
  * ------------------------------------------------------------------
  */
 import { AppUser } from "@/lib/types";
@@ -20,7 +20,6 @@ export const users: AppUser[] = [
     name: "Rafiul Islam",
     username: "rafiul",
     email: "rafiul.islam@student.buet.ac.bd",
-    password: "student123",
     role: "student",
     avatarInitials: "RI",
     universityId: "buet",
@@ -32,7 +31,6 @@ export const users: AppUser[] = [
     name: "Sharif Ahmed",
     username: "sharif",
     email: "sharif.ahmed@buet.ac.bd",
-    password: "teacher123",
     role: "teacher",
     avatarInitials: "SA",
     universityId: "buet",
@@ -43,7 +41,6 @@ export const users: AppUser[] = [
     name: "Nusrat Jahan",
     username: "nusrat",
     email: "nusrat.jahan@coursedekho.app",
-    password: "admin123",
     role: "admin",
     avatarInitials: "NJ",
     designation: "Platform Administrator",
@@ -56,7 +53,6 @@ export const users: AppUser[] = [
     name: "Tahmid Hasan",
     username: "tahmid",
     email: "tahmid.hasan@buet.ac.bd",
-    password: "teacher123",
     role: "teacher",
     avatarInitials: "TH",
     universityId: "buet",
@@ -67,7 +63,6 @@ export const users: AppUser[] = [
     name: "Amit Kumar",
     username: "amit",
     email: "amit.kumar@buet.ac.bd",
-    password: "teacher123",
     role: "teacher",
     avatarInitials: "AK",
     universityId: "buet",
@@ -78,7 +73,6 @@ export const users: AppUser[] = [
     name: "Rahan Uddin",
     username: "rahan",
     email: "rahan.uddin@buet.ac.bd",
-    password: "teacher123",
     role: "teacher",
     avatarInitials: "RU",
     universityId: "buet",
@@ -89,7 +83,6 @@ export const users: AppUser[] = [
     name: "M. S. Islam",
     username: "msislam",
     email: "ms.islam@buet.ac.bd",
-    password: "teacher123",
     role: "teacher",
     avatarInitials: "MI",
     universityId: "buet",
@@ -103,14 +96,6 @@ export const demoAccounts = [
   { role: "teacher" as const, username: "sharif", password: "teacher123", label: "Teacher demo" },
   { role: "admin" as const, username: "nusrat", password: "admin123", label: "Admin demo" },
 ];
-
-export function findUserByCredentials(username: string, password: string): AppUser | undefined {
-  return users.find(
-    (u) =>
-      u.username.toLowerCase() === username.trim().toLowerCase() &&
-      u.password === password
-  );
-}
 
 export function getUserById(id: string): AppUser | undefined {
   return users.find((u) => u.id === id);

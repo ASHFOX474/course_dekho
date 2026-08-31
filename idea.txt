@@ -1,0 +1,1819 @@
+Yes. I went through the uploaded previous conversation and combined it with **everything you clarified in this chat**. The older discussion established the original CourseDekho concept—Bangladesh CSE resources, university/course organization, topic-level roadmaps, resources, and student progress—and your latest decisions add the full **Student–Teacher–Admin permission and approval system**. 
+
+Below is the **master version of your idea**. This is the version I would use as the source of truth before designing the final ERD/database.
+
+# CourseDekho — Complete Project Specification
+
+## 1. The core idea
+
+**CourseDekho** is a centralized course/resource management platform for **CSE students in Bangladesh**.
+
+The problem is that university CSE resources are scattered across:
+
+* Google Drive
+* Facebook groups
+* Messenger
+* Different seniors' folders
+* University-specific websites
+* Random PDFs
+* Question banks
+* Slides
+* Tutorials
+* Books
+* Practice problems
+
+A student shouldn't have to search through dozens of places to find:
+
+> "I am taking DSA. What topics do I need to study, in what order, and what resources/questions are available for each topic?"
+
+CourseDekho solves this by organizing everything around:
+
+```text
+University
+    ↓
+Semester
+    ↓
+Course
+    ↓
+Topic / Roadmap
+    ↓
+Resources
+```
+
+For example:
+
+```text
+BUET
+ ↓
+Level 2 Term 1
+ ↓
+Data Structures & Algorithms
+ ↓
+1. Linked List
+2. Stack & Queue
+3. Tree
+4. Graph
+5. Greedy
+6. Dynamic Programming
+ ↓
+Slides
+Tutorials
+Books
+Questions
+Practice Materials
+LeetCode Problems
+```
+
+The previous discussion specifically moved away from a generic "career roadmap" and toward a **topic-level roadmap inside each course**, because that makes the database more meaningful and useful for the DBMS project. 
+
+---
+
+# 2. The three types of users
+
+There are **three user roles**:
+
+```text
+                    USER
+                      |
+          ┌───────────┼───────────┐
+          ↓           ↓           ↓
+       STUDENT      TEACHER      ADMIN
+```
+
+The important point is that these are **not three completely independent login systems**.
+
+There is one common:
+
+### `User`
+
+containing common information such as:
+
+* user_id
+* name
+* email
+* username
+* password
+* created_at
+* active/inactive status
+
+Then the user has a role.
+
+```text
+User
+ ↓
+Role
+ ↓
+Student / Teacher / Admin
+```
+
+There can be **multiple Admins**.
+
+---
+
+# 3. STUDENT
+
+## What a Student CAN do
+
+### A. Account
+
+A student can:
+
+* Register
+* Log in
+* Maintain their profile
+* View their own information
+* Use the course platform
+
+Student-specific information can include:
+
+* student_id
+* department
+* year of study
+* university
+* created_at
+
+---
+
+## B. Browse universities
+
+Student can:
+
+* View universities
+* View university information
+* See courses offered by a university
+* Navigate through semesters
+
+Example:
+
+```text
+BUET
+ ├── Level 1 Term 1
+ ├── Level 1 Term 2
+ ├── Level 2 Term 1
+ ├── Level 2 Term 2
+ ...
+```
+
+---
+
+# 4. Student → Course
+
+A student can:
+
+* Browse courses
+* Search courses
+* Open a course
+* View course code
+* View course name
+* View description
+* View its topics
+* Follow the topic sequence
+* Access resources associated with each topic
+
+Example:
+
+```text
+Course: CSE-211
+Data Structures & Algorithms
+
+Topics:
+
+1 → Linked List
+2 → Stack & Queue
+3 → Tree
+4 → Graph
+5 → Greedy
+6 → Dynamic Programming
+```
+
+The **sequence order matters**.
+
+The database therefore needs something like:
+
+```text
+Topic
+    topic_id
+    course_id
+    topic_name
+    sequence_order
+```
+
+So the roadmap is generated from the database rather than hardcoded.
+
+---
+
+# 5. Student → Reading / Access
+
+Students can **read/access any approved content**.
+
+That includes:
+
+* Courses
+* Study Materials
+* Practice Materials
+* Books
+* Tutorials
+* Slides
+* Questions
+* LeetCode Problems
+* Other approved resources
+
+The platform tracks their usage.
+
+For example:
+
+```text
+Student A
+   ↓
+opens
+   ↓
+Dynamic Programming
+   ↓
+BUET Final 2025 Questions
+```
+
+The system can record:
+
+* accessed_at
+* last_accessed_at
+* progress_percent
+* completed_at
+
+---
+
+# 6. Student → Progress tracking
+
+This is one of the important features from the original idea.
+
+The student should be able to see:
+
+```text
+DSA
+
+Linked List             ✓ 100%
+Stack & Queue            ✓ 100%
+Tree                     ✓ 100%
+Graph                    60%
+Greedy                   0%
+Dynamic Programming      0%
+```
+
+So the database tracks the student's progress.
+
+Conceptually:
+
+```text
+Student
+   |
+   | studies
+   ↓
+Topic
+```
+
+with information such as:
+
+```text
+progress_percent
+completed
+completed_at
+last_accessed_at
+```
+
+The older design specifically proposed a `user_progress` concept with a composite `(user_id, topic_id)` key so that a user cannot create duplicate progress records for the same topic. 
+
+---
+
+# 7. Student → Bookmark
+
+A student can bookmark **everything**.
+
+Not just courses.
+
+They can bookmark:
+
+* Course
+* Topic
+* Study Material
+* Practice Material
+* Book
+* Tutorial
+* Slide
+* Question
+* LeetCode Problem
+
+Example:
+
+```text
+Student
+   |
+   | bookmarks
+   ↓
+"BUET DSA Final 2024 Question"
+```
+
+Later:
+
+```text
+My Bookmarks
+----------------------
+DSA
+DBMS
+OS
+BUET Final 2024
+Normalization Notes
+DP Tutorial
+```
+
+A bookmark can contain:
+
+* bookmark_id
+* user_id
+* bookmarked_item
+* bookmarked_at
+* notes
+
+---
+
+# 8. Student CANNOT upload
+
+This is an important rule.
+
+### Student:
+
+❌ Cannot upload resources.
+
+❌ Cannot create courses.
+
+❌ Cannot create topics.
+
+❌ Cannot modify approved content.
+
+❌ Cannot delete resources.
+
+❌ Cannot approve content.
+
+❌ Cannot modify other users.
+
+❌ Cannot modify university/course structure.
+
+Student is primarily a:
+
+> **consumer of the platform.**
+
+They can:
+
+```text
+READ
+ACCESS
+SEARCH
+FOLLOW
+TRACK PROGRESS
+BOOKMARK
+```
+
+but **not manage platform content**.
+
+---
+
+# 9. TEACHER
+
+Teacher is different from Student.
+
+A Teacher is a **content contributor**, but not a platform administrator.
+
+---
+
+# 10. Teacher CAN do
+
+Teacher can:
+
+* Register/login
+* Maintain their profile
+* Browse universities
+* Browse courses
+* Browse topics
+* Read resources
+* Bookmark resources
+* Track their own progress
+* Upload content
+
+But there is one extremely important restriction:
+
+# Teacher uploads require Admin approval.
+
+---
+
+# 11. Teacher → Upload
+
+Teacher can upload **all supported resource types**.
+
+You explicitly decided that teachers can upload:
+
+### Course-related resources
+
+* Study Material
+* Practice Material
+* Book
+* Tutorial
+* Slide
+* Question
+* LeetCode Problem
+
+Potentially other resource types can be added later.
+
+But **Teacher cannot create a Course itself.**
+
+---
+
+# 12. Teacher CANNOT create courses
+
+This is another major permission rule.
+
+```text
+ADMIN
+  ↓
+creates Course
+```
+
+NOT:
+
+```text
+TEACHER
+  ↓
+creates Course
+```
+
+So if a teacher thinks:
+
+> "I want to add a new DSA course."
+
+They cannot directly create it.
+
+They can only submit supported **content/resources** for existing platform courses.
+
+---
+
+# 13. Teacher upload workflow
+
+This should be a major part of the database.
+
+The workflow is:
+
+```text
+Teacher
+   |
+   | uploads
+   ↓
+Submission
+   |
+   | PENDING
+   ↓
+Admin Review
+   |
+   ├───────────────┐
+   ↓               ↓
+APPROVED         REJECTED
+   |               |
+   ↓               ↓
+Published       Not published
+```
+
+The teacher does **not** directly publish content.
+
+---
+
+# 14. Submission entity
+
+This means you should have a separate:
+
+### `Submission`
+
+Something conceptually like:
+
+```text
+submission_id
+teacher_id
+content_type
+title
+description
+submitted_at
+status
+reviewed_by
+reviewed_at
+rejection_reason
+```
+
+Status:
+
+```text
+PENDING
+APPROVED
+REJECTED
+```
+
+This is much better than simply putting:
+
+```text approved = true/false
+```
+
+inside every resource.
+
+Because the system needs to know:
+
+> "What exactly did the teacher submit and what did the admin decide?"
+
+---
+
+# 15. Teacher ownership
+
+Every teacher-uploaded resource should remember **who uploaded it**.
+
+For example:
+
+```text
+Tutorial
+   ↑
+uploaded_by
+   |
+Teacher A
+```
+
+So users can potentially see:
+
+> Uploaded by Professor/Sir X
+
+and the database knows who owns/contributed the content.
+
+---
+
+# 16. Teacher modifying an approved resource
+
+This is VERY important.
+
+Suppose:
+
+```text
+Teacher A
+   ↓
+uploads Tutorial
+   ↓
+Admin approves
+   ↓
+Tutorial becomes public
+```
+
+Later Teacher A wants to change it.
+
+They **cannot directly change the public version**.
+
+Instead:
+
+```text
+Teacher modifies
+      ↓
+new submission/modification
+      ↓
+PENDING
+      ↓
+Admin reviews
+      ↓
+APPROVED
+      ↓
+new version becomes public
+```
+
+So:
+
+### Every new upload/modification requires approval again.
+
+---
+
+# 17. Teacher cannot bypass Admin
+
+Teacher cannot:
+
+❌ Publish directly
+
+❌ Approve their own upload
+
+❌ Modify an approved resource without approval
+
+❌ Delete platform content
+
+❌ Create a Course
+
+❌ Create a University
+
+❌ Create a Semester
+
+❌ Change the roadmap structure without authorization
+
+❌ Approve another teacher's content
+
+❌ Manage users
+
+❌ Promote someone to Admin
+
+---
+
+# 18. What Teacher CAN still consume
+
+Teacher isn't only an uploader.
+
+A teacher can also use CourseDekho like a normal learner.
+
+They can:
+
+```text
+READ
+ACCESS
+BOOKMARK
+TRACK PROGRESS
+```
+
+So both:
+
+```text
+Student
+Teacher
+```
+
+can consume the platform's approved educational content.
+
+---
+
+# 19. ADMIN
+
+Now comes the most powerful role.
+
+There can be:
+
+# Multiple Admins
+
+```text
+Admin 1
+Admin 2
+Admin 3
+...
+```
+
+All have administrative authority.
+
+---
+
+# 20. Admin's main purpose
+
+Admin is the **platform controller/moderator**.
+
+Admin manages:
+
+```text
+Users
+Courses
+Topics
+Resources
+Questions
+Study Materials
+Practice Materials
+Submissions
+etc.
+```
+
+---
+
+# 21. Admin → User management
+
+Admin can manage **any user**.
+
+That includes:
+
+### Students
+
+Admin can:
+
+* Create
+* Read
+* Update
+* Delete
+
+### Teachers
+
+Admin can:
+
+* Create
+* Read
+* Update
+* Delete
+
+### Admin accounts
+
+Your current requirement says Admin has broad management capability.
+
+However, I'd treat **admin-account deletion/promotion as a security-sensitive operation** in implementation, even though your conceptual ERD can show Admin as having full CRUD authority.
+
+---
+
+# 22. Admin → Content management
+
+Admin has full CRUD authority over platform data.
+
+That means Admin can:
+
+### Courses
+
+* Create
+* Read
+* Update
+* Delete
+
+### Topics
+
+* Create
+* Read
+* Update
+* Delete
+
+### Study Materials
+
+* Create
+* Read
+* Update
+* Delete
+
+### Practice Materials
+
+* Create
+* Read
+* Update
+* Delete
+
+### Books
+
+* Create
+* Read
+* Update
+* Delete
+
+### Tutorials
+
+* Create
+* Read
+* Update
+* Delete
+
+### Slides
+
+* Create
+* Read
+* Update
+* Delete
+
+### Questions
+
+* Create
+* Read
+* Update
+* Delete
+
+### LeetCode Problems
+
+* Create
+* Read
+* Update
+* Delete
+
+---
+
+# 23. Admin → Approval
+
+Admin reviews Teacher submissions.
+
+```text
+Submission
+     |
+     ↓
+Admin
+     |
+     ├── Approve
+     |
+     └── Reject
+```
+
+If rejected, there should be a:
+
+```text
+rejection_reason
+```
+
+so the teacher knows why it was rejected.
+
+---
+
+# 24. Admin → Course creation
+
+Only Admin can create the official course structure.
+
+Example:
+
+```text
+Admin creates:
+
+CSE-211
+Data Structures & Algorithms
+```
+
+Then Admin can create:
+
+```text
+CSE-211
+ ↓
+Linked List
+ ↓
+Stack
+ ↓
+Queue
+ ↓
+Tree
+ ↓
+Graph
+ ↓
+Greedy
+ ↓
+DP
+```
+
+Teachers can then submit materials **to those existing topics**.
+
+---
+
+# 25. Admin → Roadmap management
+
+Admin controls the official roadmap.
+
+They can:
+
+* Add a topic
+* Remove a topic
+* Rename a topic
+* Change topic description
+* Change topic order
+* Associate resources/topics appropriately
+
+Example:
+
+```text
+1. Array
+2. Linked List
+3. Stack
+4. Queue
+5. Tree
+```
+
+Admin can change it to:
+
+```text
+1. Array
+2. Linked List
+3. Stack
+4. Queue
+5. Tree
+6. Graph
+```
+
+The `sequence_order` is what generates the roadmap.
+
+---
+
+# 26. Admin → Universities
+
+The original idea is specifically for universities in Bangladesh.
+
+So Admin should control:
+
+```text
+University
+```
+
+For example:
+
+```text
+BUET
+DU
+NSU
+BRAC University
+...
+```
+
+Admin can manage university information.
+
+---
+
+# 27. University → Semester → Course
+
+The academic hierarchy should be represented approximately as:
+
+```text
+University
+    ↓
+Semester
+    ↓
+Course
+    ↓
+Topic
+    ↓
+Resources
+```
+
+For example:
+
+```text
+BUET
+ ↓
+Level 2 Term 1
+ ↓
+CSE-211 DSA
+ ↓
+Dynamic Programming
+ ↓
+BUET Final 2025
+```
+
+The previous database discussion established the university/course relationship and later refined the design so that resources are attached to **topics rather than merely to the whole course**. 
+
+---
+
+# 28. Course → Topic is VERY important
+
+This is basically the heart of CourseDekho.
+
+Instead of:
+
+```text
+Course → Resources
+```
+
+you want:
+
+```text
+Course
+  ↓
+Topic
+  ↓
+Resources
+```
+
+Because:
+
+> A DSA course may contain hundreds of resources, but the student needs to know which resources belong to Linked Lists, which belong to Trees, which belong to DP, etc.
+
+---
+
+# 29. Resources
+
+Your resource ecosystem is broader than just a generic `Resource` table.
+
+You have concepts such as:
+
+### Study Material
+
+Examples:
+
+* Notes
+* PDFs
+* lecture material
+
+### Practice Material
+
+Examples:
+
+* practice sheets
+* exercises
+* problem sets
+
+### Tutorial
+
+Could contain:
+
+* title
+* content
+* URL/file
+
+### Book
+
+Could contain:
+
+* title
+* author
+* publisher
+* file/path
+
+### Slide
+
+Could contain:
+
+* title
+* slide content/file
+
+### Question
+
+Could contain:
+
+* question text
+* difficulty
+* year
+* solution status
+
+### LeetCode Problem
+
+Could contain:
+
+* problem title
+* problem URL
+* difficulty
+
+These can all be connected to the relevant course/topic.
+
+---
+
+# 30. Year
+
+Questions and academic resources can have a year.
+
+For example:
+
+```text
+BUET DSA Final
+2024
+```
+
+So you can have a `Year` entity or year attribute associated with relevant academic content.
+
+This allows things like:
+
+```text
+DSA
+ ├── Midterm 2022
+ ├── Final 2023
+ ├── Midterm 2024
+ └── Final 2025
+```
+
+---
+
+# 31. Question solving
+
+Another feature from your ERD is tracking whether a student has solved a question.
+
+Conceptually:
+
+```text
+Student
+   |
+   | solves
+   ↓
+Question
+```
+
+with information such as:
+
+```text
+is_question_solved
+completed_at
+last_accessed_at
+```
+
+So a student can see:
+
+```text
+Questions
+
+✓ Question 1
+✓ Question 2
+○ Question 3
+○ Question 4
+```
+
+This fits naturally with your overall progress system.
+
+---
+
+# 32. Activity tracking
+
+Your earlier ERD also had an `Activity` concept.
+
+This represents user activity such as:
+
+* accessing something
+* completing something
+* performing an action
+* potentially marking a topic done
+
+Possible attributes included:
+
+```text
+activity_id
+activity_type
+description
+activity_date_time
+```
+
+This can support a student's activity/progress dashboard.
+
+---
+
+# 33. Access history
+
+A more structured version of activity tracking is:
+
+### `AccessHistory`
+
+For example:
+
+```text
+Student A
+opened
+"DP Tutorial"
+at
+10:30 PM
+```
+
+Store:
+
+* access_id
+* user_id
+* content_id
+* accessed_at
+* progress_percent
+* completed_at
+* last_accessed_at
+
+This allows:
+
+> "Continue where you left off."
+
+---
+
+# 34. Bookmark system
+
+The bookmark relationship should work for **any content**.
+
+Conceptually:
+
+```text
+User
+ |
+ | bookmarks
+ ↓
+Content
+```
+
+with:
+
+```text
+bookmark_id
+bookmarked_at
+notes
+```
+
+This applies to:
+
+```text
+Course
+Topic
+Study Material
+Practice Material
+Book
+Tutorial
+Slide
+Question
+LeetCode Problem
+```
+
+---
+
+# 35. Important distinction: approved vs uploaded
+
+A teacher uploading something does **not** mean it immediately becomes visible as official platform content.
+
+There are two stages:
+
+```text
+Teacher-created submission
+          ↓
+       PENDING
+          ↓
+      Admin review
+       ↙       ↘
+  APPROVED    REJECTED
+      ↓
+Published
+```
+
+This distinction should exist in the database.
+
+---
+
+# 36. Full data flow
+
+The entire system can be visualized as:
+
+```text
+                         ADMIN
+                           |
+             ┌─────────────┼──────────────┐
+             ↓             ↓              ↓
+        Universities     Courses        Users
+                           |
+                           ↓
+                        Topics
+                           |
+          ┌────────────────┼────────────────┐
+          ↓                ↓                ↓
+    Study Material   Practice Material   Questions
+          ↓                ↓                ↓
+      Tutorial           Book          LeetCode
+          ↓                ↓                ↓
+                         CONTENT
+                           ↑
+                           |
+                     ADMIN APPROVAL
+                           ↑
+                           |
+                      SUBMISSION
+                           ↑
+                           |
+                        TEACHER
+```
+
+And on the user side:
+
+```text
+                 STUDENT / TEACHER
+                         |
+            ┌────────────┼────────────┐
+            ↓            ↓            ↓
+          READ       BOOKMARK      PROGRESS
+            |                         |
+            └──────────┬──────────────┘
+                       ↓
+                 COURSE/TOPIC
+```
+
+---
+
+# 37. Complete permission matrix
+
+This is probably the most useful part for your project.
+
+| Action                   | Student | Teacher | Admin |
+| ------------------------ | ------: | ------: | ----: |
+| Register/Login           |       ✅ |       ✅ |     ✅ |
+| Manage own profile       |       ✅ |       ✅ |     ✅ |
+| Browse universities      |       ✅ |       ✅ |     ✅ |
+| Browse courses           |       ✅ |       ✅ |     ✅ |
+| Read courses             |       ✅ |       ✅ |     ✅ |
+| Read resources           |       ✅ |       ✅ |     ✅ |
+| Bookmark content         |       ✅ |       ✅ |     ✅ |
+| Track own progress       |       ✅ |       ✅ |     ✅ |
+| Access history           |       ✅ |       ✅ |     ✅ |
+| Create Course            |       ❌ |       ❌ |     ✅ |
+| Modify Course            |       ❌ |       ❌ |     ✅ |
+| Delete Course            |       ❌ |       ❌ |     ✅ |
+| Create Topic             |       ❌ |       ❌ |     ✅ |
+| Modify Topic             |       ❌ |       ❌ |     ✅ |
+| Delete Topic             |       ❌ |       ❌ |     ✅ |
+| Upload Study Material    |       ❌ |      ✅* |     ✅ |
+| Upload Practice Material |       ❌ |      ✅* |     ✅ |
+| Upload Book              |       ❌ |      ✅* |     ✅ |
+| Upload Tutorial          |       ❌ |      ✅* |     ✅ |
+| Upload Slide             |       ❌ |      ✅* |     ✅ |
+| Upload Question          |       ❌ |      ✅* |     ✅ |
+| Upload LeetCode Problem  |       ❌ |      ✅* |     ✅ |
+| Publish own upload       |       ❌ |       ❌ |     ✅ |
+| Approve submission       |       ❌ |       ❌ |     ✅ |
+| Reject submission        |       ❌ |       ❌ |     ✅ |
+| Modify approved upload   |       ❌ |      ✅* |     ✅ |
+| Delete approved upload   |       ❌ |       ❌ |     ✅ |
+| Manage Students          |       ❌ |       ❌ |     ✅ |
+| Manage Teachers          |       ❌ |       ❌ |     ✅ |
+| Manage Users             |       ❌ |       ❌ |     ✅ |
+| Manage Universities      |       ❌ |       ❌ |     ✅ |
+| Manage Semesters         |       ❌ |       ❌ |     ✅ |
+| Manage Years             |       ❌ |       ❌ |     ✅ |
+| Change roadmap order     |       ❌ |       ❌ |     ✅ |
+
+`*` Teacher action requires **Admin approval**.
+
+---
+
+# 38. What each role fundamentally represents
+
+## Student
+
+> **Consumer + learner**
+
+```text
+READ
+SEARCH
+ACCESS
+BOOKMARK
+TRACK PROGRESS
+```
+
+No platform-content management.
+
+---
+
+## Teacher
+
+> **Learner + contributor**
+
+```text
+Everything Student can do
++
+SUBMIT CONTENT
+```
+
+But:
+
+```text
+SUBMIT ≠ PUBLISH
+```
+
+Admin must approve it.
+
+---
+
+## Admin
+
+> **Platform manager + moderator**
+
+```text
+MANAGE USERS
+MANAGE COURSES
+MANAGE TOPICS
+MANAGE UNIVERSITIES
+MANAGE CONTENT
+APPROVE SUBMISSIONS
+REJECT SUBMISSIONS
+DELETE CONTENT
+MODIFY CONTENT
+```
+
+---
+
+# 39. BIG "DO NOT" RULES
+
+These should be treated as business rules for the application.
+
+### Student MUST NOT:
+
+* Create courses
+* Create topics
+* Upload resources
+* Publish resources
+* Approve submissions
+* Reject submissions
+* Delete other users
+* Modify other users
+* Modify official course structure
+* Modify official roadmap
+* Delete resources
+
+---
+
+### Teacher MUST NOT:
+
+* Create courses
+* Create universities
+* Create semesters
+* Directly publish resources
+* Approve their own submissions
+* Approve another teacher's submissions
+* Modify official course structure
+* Modify official roadmap
+* Manage users
+* Delete students
+* Delete other teachers
+* Give themselves Admin privileges
+* Bypass approval
+* Modify an approved resource directly
+
+Instead:
+
+```text
+Teacher modification
+        ↓
+Submission
+        ↓
+Admin approval
+```
+
+---
+
+### Admin MUST NOT be constrained by normal user permissions
+
+Admin should be able to:
+
+* Manage users
+* Manage courses
+* Manage topics
+* Manage resources
+* Approve/reject
+* Delete inappropriate content
+* Correct wrong data
+* Modify platform data
+
+There is **no requirement for an admin audit/history system** in your current specification.
+
+---
+
+# 40. Things you specifically decided NOT to have
+
+These are also important.
+
+### ❌ Students cannot upload
+
+You explicitly rejected student uploading.
+
+### ❌ Teachers cannot create Courses
+
+Courses are created by Admin.
+
+### ❌ Teacher modifications don't bypass approval
+
+Every modification requires approval again.
+
+### ❌ No admin history/audit requirement
+
+You explicitly said you don't need a history of:
+
+> Admin A changed Teacher B's email.
+
+So we don't need an audit-log entity unless you decide to add it later.
+
+### ❌ No generic career roadmap as the main feature
+
+The original conversation considered a career/skill roadmap, but you moved toward:
+
+> **Course → Topic → ordered learning roadmap**
+
+That's the main roadmap.
+
+---
+
+# 41. The original "roadmap" idea
+
+The strongest original feature is:
+
+> **CourseDekho doesn't simply store files; it organizes the learning path.**
+
+For example:
+
+### DSA
+
+```text
+Course
+│
+├── 1. Array
+│     ├── Slides
+│     ├── Tutorials
+│     └── Questions
+│
+├── 2. Linked List
+│     ├── Slides
+│     ├── Tutorial
+│     └── Questions
+│
+├── 3. Stack & Queue
+│     ├── Slides
+│     └── Practice
+│
+├── 4. Tree
+│
+├── 5. Graph
+│
+├── 6. Greedy
+│
+└── 7. Dynamic Programming
+```
+
+The database determines this ordering using `sequence_order`, so the frontend doesn't have to hardcode:
+
+```text
+1, 2, 3, 4...
+```
+
+---
+
+# 42. The complete conceptual hierarchy
+
+Putting **everything together**, your system becomes:
+
+```text
+USER
+│
+├── STUDENT
+│     │
+│     ├── enrolls in Course
+│     ├── accesses Content
+│     ├── bookmarks Content
+│     ├── tracks Topic progress
+│     └── solves Questions
+│
+├── TEACHER
+│     │
+│     ├── accesses Content
+│     ├── bookmarks Content
+│     ├── tracks progress
+│     │
+│     └── submits Content
+│             ↓
+│         SUBMISSION
+│             ↓
+│          ADMIN
+│             ↓
+│       APPROVED / REJECTED
+│
+└── ADMIN
+      │
+      ├── manages Users
+      ├── manages Universities
+      ├── manages Semesters
+      ├── creates Courses
+      ├── manages Topics
+      ├── manages Content
+      ├── reviews Submissions
+      └── approves/rejects
+```
+
+And the educational structure:
+
+```text
+University
+     ↓
+Semester
+     ↓
+Course
+     ↓
+Topic
+     ↓
+Approved Content
+     ├── Study Material
+     ├── Practice Material
+     ├── Book
+     ├── Tutorial
+     ├── Slide
+     ├── Question
+     └── LeetCode Problem
+```
+
+And user interaction:
+
+```text
+User
+ │
+ ├── Enrollment
+ │       ↓
+ │     Course
+ │
+ ├── Access
+ │       ↓
+ │     Content
+ │
+ ├── Bookmark
+ │       ↓
+ │     Content
+ │
+ ├── Progress
+ │       ↓
+ │     Topic
+ │
+ └── Solve
+         ↓
+       Question
+```
+
+---
+
+# 43. The database entities I would now consider the core
+
+For the **final ERD**, I would expect roughly these major entities:
+
+### Identity / authorization
+
+```text
+User
+Role
+Student
+Teacher
+Admin
+```
+
+### Academic structure
+
+```text
+University
+Semester
+Course
+Topic
+Year
+```
+
+### Content
+
+```text
+ApprovedContent
+StudyMaterial
+PracticeMaterial
+Book
+Tutorial
+Slide
+Question
+LeetCodeProblem
+```
+
+### User activity
+
+```text
+Enrollment
+AccessHistory
+Bookmark
+Progress
+```
+
+### Teacher moderation
+
+```text
+Submission
+```
+
+### Optional activity
+
+```text
+Activity
+```
+
+depending on how detailed you want the activity tracking to be.
+
+---
+
+# 44. The most important relationships
+
+Your ERD should ultimately communicate relationships like:
+
+```text
+University
+    1
+    |
+    N
+Semester
+    1
+    |
+    N
+Course
+    1
+    |
+    N
+Topic
+    1
+    |
+    N
+Approved Content
+```
+
+User relationships:
+
+```text
+User
+ ├── Student
+ ├── Teacher
+ └── Admin
+```
+
+Teacher workflow:
+
+```text
+Teacher
+   1
+   |
+   N
+Submission
+   |
+   1
+   ↓
+Approved Content
+```
+
+Admin review:
+
+```text
+Admin
+   1
+   |
+   N
+Submission
+```
+
+Learning:
+
+```text
+Student
+   N
+   |
+   N
+Course
+```
+
+Access:
+
+```text
+User
+  1
+  |
+  N
+AccessHistory
+```
+
+Bookmark:
+
+```text
+User
+  1
+  |
+  N
+Bookmark
+```
+
+Progress:
+
+```text
+Student
+   1
+   |
+   N
+Progress
+   N
+   |
+   1
+Topic
+```
+
+Questions:
+
+```text
+Student
+   N
+   |
+   N
+Question
+```
+
+with solving state tracked separately.
+
+---
+
+# 45. The final vision
+
+The platform isn't simply:
+
+> **"A website containing PDFs."**
+
+It is:
+
+> **A structured academic resource and course-management platform where courses are broken into ordered topics, resources are attached to those topics, students and teachers can consume and track content, teachers can contribute resources through an admin-controlled approval workflow, and administrators have complete control over the platform's users, academic structure, and content.**
+
+The strongest part of the project from a **DBMS perspective** is the combination of:
+
+```text
+University
+      ↓
+Semester
+      ↓
+Course
+      ↓
+Topic / Roadmap
+      ↓
+Content
+      ↓
+User interaction
+      ↓
+Progress + Access + Bookmark
+```
+
+plus:
+
+```text
+Teacher
+   ↓
+Submission
+   ↓
+Admin Approval
+   ↓
+Published Content
+```
+
+That gives you substantially more than a simple CRUD database: you have **role-based access, many-to-many relationships, ordered entities, content specialization, moderation workflow, user activity, progress tracking, and bookmarking**.
+
+**This is the specification I would now treat as the source of truth for the next ERD.**
+ eije ei prompt ta use kor
