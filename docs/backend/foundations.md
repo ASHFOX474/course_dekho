@@ -1,8 +1,7 @@
 # Backend foundations
 
-The backend follows a server-only layered architecture. Authentication and the
-read-only academic catalog now use this typed path; remaining workflows can build
-on the same boundary:
+The backend follows a server-only layered architecture. Authentication, the
+academic catalog, and the database-backed workspace workflows use this typed path:
 
 ```text
 untrusted request
@@ -28,7 +27,9 @@ Errors travel through `mapErrorToApi` and use the frozen `{ error: { code, messa
 | Domain | `lib/server/domain` | Backend entities, lifecycle enums, `Date` values | PostgreSQL column names, JSON envelope details |
 | API | `lib/server/api` | Request validation, contract DTOs, camelCase/ISO mapping, safe error envelopes | Raw SQL, internal numeric IDs, database error details |
 
-The existing mock/UI types in `lib/types.ts` remain untouched. They contain display labels and demo-only fields, so using them as database or HTTP types would couple the migration to the prototype.
+The display types retained in `lib/types.ts` are presentation-only. Database rows,
+domain models, and HTTP DTOs remain separate so UI labels cannot leak into SQL or
+the API contract.
 
 ## Pool and transaction use
 
@@ -69,7 +70,10 @@ immutable revision must originate from an approved submission, and content plus
 all academic ancestors must be active. Pending/rejected content therefore cannot
 be represented by any learner-facing query.
 
-The submission repository provides lookup by public ID and teacher-owned submission listing. It intentionally does not authorize actors; the future service/route must derive the actor from a verified server session before calling it.
+The workspace repository provides teacher-owned and admin submission listing,
+enrollment, progress, bookmarks, activity, solved questions, and transactional
+review persistence. Repositories do not authorize actors; each handler derives the
+actor from a verified server session and each service repeats the role check.
 
 ## Validation and errors
 
@@ -86,11 +90,10 @@ Sessions use 32 random bytes encoded as an opaque cookie token. Only its SHA-256
 Registration allows student and teacher roles only. The service hashes the password before opening a short transaction, then resolves an active university and inserts the user, exact role profile, and session through repositories bound to one `PoolClient`. Any failure rolls the transaction back. Admin provisioning remains a separate admin-only workflow.
 
 `requireRole` is called inside protected handler execution after session resolution.
-The session, logout, and every catalog handler use this pattern. Future
-teacher/admin handlers must pass their narrower allowlist before calling
-repositories. Do not move this decision exclusively to Next.js middleware or
-React components. Authenticated catalog responses use `private, no-store` and
-`Vary: Cookie` so shared caches cannot cross user sessions.
+The session, logout, catalog, learner, teacher, and admin handlers all use this
+pattern. Do not move this decision exclusively to Next.js middleware or React
+components. Authenticated responses use `private, no-store` and `Vary: Cookie` so
+shared caches cannot cross user sessions.
 
 ## Read-only academic vertical slice
 
@@ -101,17 +104,16 @@ repository call. Missing or inactive parent records return `404`; a visible pare
 with no visible children returns an empty collection.
 
 The pages under `app/courses/` and `app/resources/[resourceId]/` use
-`lib/client/catalog-api.ts` and no longer import academic/resource/progress mock
-tables. The migration was performed in navigation order so PostgreSQL UUID links
-never lead into legacy mock-ID pages. Bookmark mutation remains prototype state;
-mock progress was removed from these pages rather than attached to unrelated UUIDs.
+`lib/client/catalog-api.ts`; profile, learning, bookmark, activity, solved-question,
+submission, and review pages use `lib/client/workspace-api.ts`. No frontend page
+imports a mock table or client-side data provider. PostgreSQL public UUIDs are used
+for every link and mutation.
 
 Unsafe browser auth requests verify `Origin`/Fetch Metadata in addition to `SameSite=Strict`. Set `APP_ORIGIN` to the canonical external origin when a reverse proxy could make the request URL ambiguous. Production must also provide a shared ingress/application rate limiter for login and registration; an in-memory limiter would be incorrect across multiple Next.js instances.
 
-## Remaining backend work
+## Current boundary
 
-Authentication, session persistence, the read-only catalog provider, and the
-academic-page cutover are implemented. Submission/review, enrollment, progress,
-bookmark, history, and solved-question workflows still use mock state. The next
-implementation should add transactional teacher submission/admin review APIs,
-always resolving the session and asserting the role inside each handler.
+Authentication, session persistence, the read-only catalog provider, profiles,
+submission/review, enrollment, progress, bookmark, access-history, and
+solved-question workflows are implemented against PostgreSQL. Binary file delivery
+and admin CRUD for the official academic hierarchy remain outside this slice.

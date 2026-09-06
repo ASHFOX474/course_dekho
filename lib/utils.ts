@@ -41,20 +41,6 @@ export function formatRelativeTime(iso: string): string {
   return formatDate(iso);
 }
 
-/**
- * Returns an ISO timestamp `hours` hours before "now".
- * Used only when SEEDING mock data, so that things like "Recent Access"
- * always look freshly-timestamped no matter when you actually run the app.
- */
-export function hoursAgoIso(hours: number): string {
-  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
-}
-
-/** Same idea as `hoursAgoIso`, but in whole days. */
-export function daysAgoIso(days: number): string {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-}
-
 /** Clamp a number between 0 and 100 — used for progress percentages. */
 export function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));

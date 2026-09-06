@@ -17,22 +17,11 @@ import {
   type CourseSummaryDto,
   type TopicSummaryDto,
 } from "@/lib/client/catalog-api";
+import { createEnrollment, getLearning } from "@/lib/client/workspace-api";
+import { useDatabaseData } from "@/lib/client/use-database-data";
 import { cn } from "@/lib/utils";
 
-type Tab = "roadmap" | "resources" | "announcements";
-
-const announcements = [
-  {
-    title: "Midterm exam schedule released",
-    date: "2024-05-12",
-    body: "Check the university notice board for room assignments.",
-  },
-  {
-    title: "New Graph resources added",
-    date: "2024-05-05",
-    body: "A fresh set of BFS/DFS practice problems has been uploaded to the Graph topic.",
-  },
-];
+type Tab = "roadmap" | "resources";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unable to load this course.";
@@ -41,6 +30,12 @@ function errorMessage(error: unknown): string {
 export default function CourseRoadmapPage() {
   const params = useParams<{ courseId: string }>();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const isLearner = user?.role === "student" || user?.role === "teacher";
+  const learning = useDatabaseData(
+    `course-learning:${user?.id ?? "anonymous"}:${params.courseId}`,
+    isLearner ? getLearning : async () => ({ courses: [], topics: [] }),
+    { courses: [], topics: [] }
+  );
   const [course, setCourse] = useState<CourseSummaryDto | null>(null);
   const [topics, setTopics] = useState<TopicSummaryDto[]>([]);
   const [resources, setResources] = useState<ApprovedResourceDto[]>([]);
@@ -77,6 +72,16 @@ export default function CourseRoadmapPage() {
 
   const selectedTopic =
     topics.find((topic) => topic.id === selectedTopicId) ?? topics[0];
+  const enrolled = learning.data.courses.some((item) => item.courseId === params.courseId);
+
+  async function enroll() {
+    try {
+      await createEnrollment(params.courseId);
+      learning.refresh();
+    } catch (requestError) {
+      setError(errorMessage(requestError));
+    }
+  }
 
   if (isLoading || isAuthLoading) {
     return (
@@ -107,17 +112,20 @@ export default function CourseRoadmapPage() {
           <span className="text-slate-600">{course.code}</span>
         </p>
 
-        <div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
           <h2 className="text-lg font-bold text-slate-900">
             {course.code}: {course.name}
           </h2>
           {course.description && (
             <p className="mt-1 max-w-3xl text-sm text-slate-500">{course.description}</p>
           )}
+          </div>
+          {isLearner && <button type="button" disabled={enrolled} onClick={() => void enroll()} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-emerald-100 disabled:text-emerald-700">{enrolled ? "Enrolled" : "Enroll in course"}</button>}
         </div>
 
         <div className="flex gap-1 border-b border-slate-200">
-          {(["roadmap", "resources", "announcements"] as Tab[]).map((item) => (
+          {(["roadmap", "resources"] as Tab[]).map((item) => (
             <button
               key={item}
               type="button"
@@ -262,24 +270,6 @@ export default function CourseRoadmapPage() {
           </div>
         )}
 
-        {tab === "announcements" && (
-          <div className="space-y-3">
-            {announcements.map((announcement) => (
-              <div
-                key={announcement.title}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {announcement.title}
-                  </p>
-                  <time className="text-xs text-slate-400">{announcement.date}</time>
-                </div>
-                <p className="mt-1 text-sm text-slate-500">{announcement.body}</p>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </AppShell>
   );

@@ -1,0 +1,35 @@
+# CourseDekho implementation handoff
+
+## 9-step status audit
+1. Freeze contracts: Complete. Role permissions, approved visibility, enrollment semantics, DTO contracts, and characterization coverage are documented/tested.
+2. Reconcile schema: Partial. Migrations 0001-0005 plus additive 0006 restore semester scope and seven typed detail tables. Public-ID/slug and role enum/table reconciliation remain unresolved.
+3. Backend foundations: Complete. Typed query/repository modules, transactions, validation, error mapping, row/domain/DTO separation are present.
+4. Authentication/authorization: Complete for current scope. Password hashing, HTTP-only sessions, atomic role profiles, and server-side role enforcement are wired.
+5. Read-only academic slice: Complete for approved-content navigation; typed detail fidelity was completed in this session.
+6. Admin academic management: Not started. University/semester/course/topic CRUD is still outstanding.
+7. Submission/approval: Complete after this session. Approval atomically writes content, revision, publish state, audit event, and exactly one matching typed detail row for all seven resource types; catalog reads join those rows.
+8. Learner persistence: Complete/implemented in current tree (enrollment, progress, bookmarks, access history, solved questions and derived dashboard data).
+9. Remove mocks: Partial/out of order. Several slices use the database, but parity and remaining profile/settings/search/analytics/deployment work are not complete.
+
+## Changes in this session
+- database/migrations/0006_restore_semester_scope.sql retained; migration characterization list updated.
+- lib/server/db/queries/workspace-queries.ts: approval transaction inserts exactly one resource-specific detail row for all seven types.
+- lib/server/db/queries/catalog-queries.ts: approved-resource queries join all seven detail tables and require exactly one subtype row.
+- lib/server/db/rows.ts, lib/server/domain/models.ts, lib/server/api/dtos.ts, lib/server/db/row-mappers.ts, lib/server/api/mappers.ts: typed fields flow SQL -> domain -> DTO; legacy rows remain compatible.
+- database/seeds/0001_demo.sql: demo question detail row added.
+- tests/characterization/workspace-backend.test.mjs and catalog-vertical-slice.test.mjs: approval/read fixtures updated.
+- builders.txt: this handoff.
+
+## Verification
+Baseline: npm test — 91 tests, 90 pass, 1 fail. Only failure: schema-migrations.test.mjs expected 0001-0005 while 0006 was present. Full output: /tmp/course-dekho-before.txt.
+After changes: npm test — 92 tests, 92 pass, 0 fail, 0 skipped. Full output: /tmp/course-dekho-after.txt.
+TypeScript: npx tsc --noEmit --incremental false passed with no diagnostics; output: /tmp/course-dekho-tsc.txt.
+
+## Dependencies and next task
+Step 7 depended on migration 0006 and the existing submission/content_revision transaction. Step 8 depends on typed approval/read parity. Step 9 depends on integration and role-based end-to-end parity. Recommended next task: implement step 6 admin academic CRUD with transactional topic ordering and protected destructive deletes, then add role-based characterization coverage.
+
+## Warnings and unknowns
+Never expose pending/rejected submissions. Teachers cannot publish or approve their own submissions. Preserve rejection reasons and audit history. Do not edit migrations 0001-0005 or remove core workflow tables. Unknown from AGENTS.md: exact next feature beyond the documented workflow, final deployment target, and unresolved role representation decision.
+
+## MY UNDERSTANDING BEFORE CONTINUING
+CourseDekho is a semester DBMS project organized University -> Semester -> Course -> ordered Topic -> approved Content. Students browse and persist learning activity; teachers submit typed resources for review; admins own official structure and approval. The safe sequence is contracts, schema, foundations, auth, reads, admin CRUD, approval, learner persistence, then mock removal and finishing features. Approval step 7 now atomically creates the matching typed detail row and reads expose those fields. Step 6 and final parity work remain.

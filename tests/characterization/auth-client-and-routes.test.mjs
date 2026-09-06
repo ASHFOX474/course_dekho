@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 const repositoryRoot = new URL("../../", import.meta.url);
@@ -33,11 +33,9 @@ test("the React auth context uses cookie-backed APIs and never localStorage or m
   assert.doesNotMatch(context, /findUserByCredentials|getUserById/);
 });
 
-test("mock user records no longer retain credential fields or compare plaintext passwords", async () => {
-  const users = await source("lib/data/users.ts");
+test("mock user records are removed and public types contain no passwords", async () => {
   const types = await source("lib/types.ts");
 
-  assert.doesNotMatch(users, /findUserByCredentials/);
-  assert.doesNotMatch(users, /^\s*password:\s*["']/m);
+  await assert.rejects(access(new URL("lib/data/users.ts", repositoryRoot)));
   assert.doesNotMatch(types, /^\s*password:\s*string/m);
 });

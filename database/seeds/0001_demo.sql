@@ -414,6 +414,20 @@ WHERE content.public_id = '00000000-0000-4000-8000-000000000601'
   AND revision.public_id = '00000000-0000-4000-8000-000000000801'
   AND revision.content_id = content.id;
 
+
+INSERT INTO coursedekho.question_detail (content_id, question_text, difficulty, points)
+SELECT content.id,
+       COALESCE(NULLIF(submission.metadata ->> 'question_text', ''), submission.title),
+       NULLIF(submission.metadata ->> 'difficulty', ''),
+       CASE WHEN COALESCE(submission.metadata ->> 'points', '') ~ '^[0-9]+$'
+         THEN (submission.metadata ->> 'points')::integer ELSE NULL END
+FROM coursedekho.content AS content
+JOIN coursedekho.content_revision AS revision ON revision.content_id = content.id
+JOIN coursedekho.content_submission AS submission ON submission.id = revision.submission_id
+WHERE content.public_id = '00000000-0000-4000-8000-000000000601'
+  AND submission.public_id = '00000000-0000-4000-8000-000000000701'
+ON CONFLICT (content_id) DO UPDATE SET question_text = EXCLUDED.question_text, difficulty = EXCLUDED.difficulty, points = EXCLUDED.points;
+
 INSERT INTO coursedekho.bookmark (public_id, user_id, course_id)
 SELECT '00000000-0000-4000-8000-000000001201', student.id, course.id
 FROM coursedekho.app_user AS student

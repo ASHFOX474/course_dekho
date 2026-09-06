@@ -6,7 +6,7 @@
 
 This document freezes semantic rules that span more than one endpoint. It does not redefine response fields already described by OpenAPI.
 
-The v1 contract covers authentication, course browsing, approved-resource visibility, explicit enrollment, teacher submission, and admin review. Binary upload, admin CRUD, progress, bookmarks, access history, and solved-question endpoint shapes remain future contract additions.
+The v1 contract covers authentication, course browsing, approved-resource visibility, explicit enrollment, teacher submission, and admin review. The implemented workspace extension also serves progress, bookmarks, access history, and solved questions under `/api/v1/me`; those additive shapes must be folded into the next OpenAPI revision before being promised to external consumers. Binary upload and admin CRUD remain future additions.
 
 ## Authentication and sessions
 
@@ -62,7 +62,8 @@ Enrollment is explicit persistent state, not a side effect of viewing a topic or
 - Re-enrolling reactivates the existing user/course relationship rather than inserting a duplicate.
 - The database must enforce one enrollment per user and course.
 
-The current mock UI infers enrollment from the presence of progress. That is a documented compatibility behavior only. It must be replaced atomically when the enrollment API is integrated; it is not the PostgreSQL contract.
+The frontend now creates enrollment explicitly through `POST /api/v1/enrollments`.
+Progress writes require an existing enrollment and never create one implicitly.
 
 ## API conventions
 

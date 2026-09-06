@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookMarked, Compass, Eye, EyeOff, Sparkles, TrendingUp } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { demoAccounts } from "@/lib/data/users";
 import { Logo } from "@/components/ui/Logo";
 
 const featureBullets = [
@@ -34,20 +33,6 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setError("");
     const result = await login(username, password);
-    setIsSubmitting(false);
-    if (!result.success) {
-      setError(result.error ?? "Something went wrong.");
-      return;
-    }
-    router.push("/dashboard");
-  }
-
-  async function handleDemoLogin(demoUsername: string, demoPassword: string) {
-    setUsername(demoUsername);
-    setPassword(demoPassword);
-    setError("");
-    setIsSubmitting(true);
-    const result = await login(demoUsername, demoPassword);
     setIsSubmitting(false);
     if (!result.success) {
       setError(result.error ?? "Something went wrong.");
@@ -159,7 +144,7 @@ export default function LoginPage() {
             <button
               type="button"
               disabled
-              title="Not wired up in this demo — use the form above"
+              title="Unavailable — use the database-backed form above"
               className="cursor-not-allowed rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-400"
             >
               Google
@@ -167,34 +152,16 @@ export default function LoginPage() {
             <button
               type="button"
               disabled
-              title="Not wired up in this demo — use the form above"
+              title="Unavailable — use the database-backed form above"
               className="cursor-not-allowed rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-400"
             >
               Microsoft
             </button>
           </div>
 
-          {/* Quick demo-login shortcuts — handy for your presentation */}
-          <div className="mt-6 rounded-xl border border-dashed border-slate-200 p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Quick demo login</p>
-            <div className="flex flex-wrap gap-2">
-              {demoAccounts.map((account) => (
-                <button
-                  key={account.role}
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => void handleDemoLogin(account.username, account.password)}
-                  className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100"
-                >
-                  {account.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <p className="mt-6 text-center text-sm text-slate-500">
             Don&apos;t have an account?{" "}
-            <span className="font-medium text-violet-600" title="Registration isn't wired up in this demo">
+            <span className="font-medium text-violet-600" title="Registration UI is not available yet">
               Sign up
             </span>
           </p>

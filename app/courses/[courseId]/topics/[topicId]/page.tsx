@@ -17,7 +17,8 @@ import {
   type CourseSummaryDto,
   type TopicSummaryDto,
 } from "@/lib/client/catalog-api";
-import { useData } from "@/lib/store/DataContext";
+import { createBookmark, deleteBookmark, listBookmarks } from "@/lib/client/workspace-api";
+import { useDatabaseData } from "@/lib/client/use-database-data";
 import type { ResourceType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +43,11 @@ function errorMessage(error: unknown): string {
 export default function TopicResourcesPage() {
   const params = useParams<{ courseId: string; topicId: string }>();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { isBookmarked, toggleBookmark } = useData();
+  const bookmarkState = useDatabaseData(
+    `topic-bookmarks:${user?.id ?? "anonymous"}:${user?.role ?? "none"}`,
+    user?.role === "admin" ? async () => [] : listBookmarks,
+    []
+  );
   const [course, setCourse] = useState<CourseSummaryDto | null>(null);
   const [topic, setTopic] = useState<TopicSummaryDto | null>(null);
   const [resources, setResources] = useState<ApprovedResourceDto[]>([]);
@@ -86,6 +91,25 @@ export default function TopicResourcesPage() {
         : resources.filter((resource) => resourceTypeLabel(resource.type) === activeFilter),
     [activeFilter, resources]
   );
+
+  async function toggleResourceBookmark(resourceId: string) {
+    try {
+      const existing = bookmarkState.data.find(
+        (bookmark) => bookmark.targetType === "resource" && bookmark.targetId === resourceId
+      );
+      if (existing) {
+        await deleteBookmark(existing.id);
+        bookmarkState.setData((current) => current.filter((bookmark) => bookmark.id !== existing.id));
+      } else {
+        const created = await createBookmark({ targetType: "resource", targetId: resourceId });
+        bookmarkState.setData((current) => [created, ...current]);
+      }
+      bookmarkState.refresh();
+      setError(null);
+    } catch (requestError) {
+      setError(errorMessage(requestError));
+    }
+  }
 
   if (isLoading || isAuthLoading) {
     return (
@@ -161,7 +185,9 @@ export default function TopicResourcesPage() {
             <tbody className="divide-y divide-slate-100">
               {visibleResources.map((resource) => {
                 const displayType = resourceTypeLabel(resource.type);
-                const bookmarked = user ? isBookmarked("resource", resource.id) : false;
+                const bookmarked = bookmarkState.data.some(
+                  (bookmark) => bookmark.targetType === "resource" && bookmark.targetId === resource.id
+                );
                 return (
                   <tr key={resource.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3">
@@ -178,17 +204,9 @@ export default function TopicResourcesPage() {
                     <td className="px-4 py-3 text-slate-500">{resource.year ?? "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
-                        <button
+                        {user?.role !== "admin" && <button
                           type="button"
-                          onClick={() =>
-                            toggleBookmark({
-                              targetType: "resource",
-                              targetId: resource.id,
-                              title: resource.title,
-                              subtitle: `${course.code} > ${topic.name}`,
-                              resourceType: displayType,
-                            })
-                          }
+                          onClick={() => void toggleResourceBookmark(resource.id)}
                           title={bookmarked ? "Remove bookmark" : "Bookmark this resource"}
                           className={cn(
                             "rounded-md p-1.5 hover:bg-slate-100",
@@ -196,7 +214,7 @@ export default function TopicResourcesPage() {
                           )}
                         >
                           <Bookmark size={15} fill={bookmarked ? "currentColor" : "none"} />
-                        </button>
+                        </button>}
                         <button
                           type="button"
                           title="Download"

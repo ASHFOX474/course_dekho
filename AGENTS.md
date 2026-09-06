@@ -352,3 +352,17 @@ The final application should demonstrate:
 - role-based access control
 - transaction handling
 - real application workflow
+
+## Skill Usage Policy
+
+For every task, automatically evaluate the enabled Codex skills and use the smallest relevant set of skills whose descriptions match the task.
+
+Rules:
+- Prefer implicit skill selection instead of requiring the user to manually specify `$skill-name`.
+- Before starting substantial work, determine which available skills are relevant.
+- Use only skills that materially help the current task.
+- Do not activate unrelated skills.
+- If multiple skills apply, use the minimal combination needed.
+- Follow the selected skills' SKILL.md instructions.
+- Project instructions in this AGENTS.md take precedence if a skill conflicts with them.
+- Do not require the user to manually name skills unless automatic selection is ambiguous or a specific skill must be forced.

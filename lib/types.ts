@@ -9,11 +9,8 @@
  *   Submission (teacher upload -> admin approval workflow)
  *   Bookmark / TopicProgress / AccessHistoryEntry (user activity)
  *
- * Right now all data comes from the mock "database" in lib/data/.
- * Later, when the real Postgres backend is ready, these same types
- * can be reused for the API response shapes — only lib/queries.ts
- * (and lib/data/*) would need to change to fetch() a real API
- * instead of reading from local arrays.
+ * Display-facing types retained for shared UI components. Persistent API
+ * contracts live in lib/server/api/dtos.ts and PostgreSQL is the data source.
  * ------------------------------------------------------------------
  */
 

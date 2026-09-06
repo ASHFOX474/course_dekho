@@ -1,21 +1,35 @@
 import type {
+  AccessHistoryView,
+  AdminStats,
   ApprovedResource,
   AuthenticatedUser,
+  BookmarkView,
   Course,
   Enrollment,
+  LearningOverview,
   SemesterSummary,
+  SolvedQuestionView,
   Submission,
   Topic,
+  TopicProgressView,
   UniversitySummary,
+  UserProfile,
 } from "../domain/models.ts";
 import type {
+  AccessHistoryDto,
+  AdminStatsDto,
   ApprovedResourceDto,
+  BookmarkDto,
   CourseSummaryDto,
   EnrollmentDto,
+  LearningOverviewDto,
   SemesterSummaryDto,
+  SolvedQuestionDto,
   SubmissionDto,
+  TopicProgressDto,
   TopicSummaryDto,
   UniversitySummaryDto,
+  UserProfileDto,
   UserSummaryDto,
 } from "./dtos.ts";
 
@@ -71,6 +85,7 @@ export function toApprovedResourceDto(resource: ApprovedResource): ApprovedResou
     year: resource.year,
     topicsCovered: [...resource.topicsCovered],
     fileSizeBytes: resource.fileSizeBytes,
+    ...(resource.details ? { details: { ...resource.details } } : {}),
     views: resource.views,
     downloads: resource.downloads,
     uploadedAt: resource.uploadedAt.toISOString(),
@@ -106,4 +121,47 @@ export function toSubmissionDto(submission: Submission): SubmissionDto {
     reviewedAt: submission.reviewedAt?.toISOString() ?? null,
     rejectionReason: submission.rejectionReason,
   };
+}
+
+export function toUserProfileDto(profile: UserProfile): UserProfileDto {
+  return {
+    user: toUserSummaryDto(profile.user),
+    university: profile.university ? { ...profile.university } : null,
+    department: profile.department,
+    yearOfStudy: profile.yearOfStudy,
+    designation: profile.designation,
+  };
+}
+
+function toTopicProgressDto(progress: TopicProgressView): TopicProgressDto {
+  return {
+    ...progress,
+    lastAccessedAt: progress.lastAccessedAt.toISOString(),
+  };
+}
+
+export function toLearningOverviewDto(overview: LearningOverview): LearningOverviewDto {
+  return {
+    courses: overview.courses.map((course) => ({
+      ...course,
+      enrolledAt: course.enrolledAt.toISOString(),
+    })),
+    topics: overview.topics.map(toTopicProgressDto),
+  };
+}
+
+export function toBookmarkDto(bookmark: BookmarkView): BookmarkDto {
+  return { ...bookmark, createdAt: bookmark.createdAt.toISOString() };
+}
+
+export function toAccessHistoryDto(entry: AccessHistoryView): AccessHistoryDto {
+  return { ...entry, accessedAt: entry.accessedAt.toISOString() };
+}
+
+export function toSolvedQuestionDto(entry: SolvedQuestionView): SolvedQuestionDto {
+  return { ...entry, solvedAt: entry.solvedAt.toISOString() };
+}
+
+export function toAdminStatsDto(stats: AdminStats): AdminStatsDto {
+  return { ...stats };
 }

@@ -144,6 +144,34 @@ const approvedResourceSelectSql = `
     revision.publication_year,
     revision.topics_covered,
     revision.file_size_bytes,
+    COALESCE(
+      study_detail.content_id,
+      practice_detail.content_id,
+      book_detail.content_id,
+      tutorial_detail.content_id,
+      slide_detail.content_id,
+      question_detail.content_id,
+      leetcode_detail.content_id
+    )::text AS detail_content_id,
+    COALESCE(study_detail.material_type, practice_detail.material_type) AS material_type,
+    COALESCE(study_detail.file_url, practice_detail.file_url) AS material_file_url,
+    COALESCE(study_detail.file_size_bytes, practice_detail.file_size_bytes) AS material_file_size_bytes,
+    book_detail.book_title,
+    book_detail.author AS book_author,
+    book_detail.publisher AS book_publisher,
+    book_detail.file_url AS book_file_url,
+    tutorial_detail.tutorial_title,
+    tutorial_detail.tutorial_content,
+    tutorial_detail.file_url AS tutorial_file_url,
+    slide_detail.slide_title,
+    slide_detail.slide_content,
+    slide_detail.file_url AS slide_file_url,
+    question_detail.question_text,
+    question_detail.difficulty AS question_difficulty,
+    question_detail.points AS question_points,
+    leetcode_detail.problem_title,
+    leetcode_detail.problem_url,
+    leetcode_detail.difficulty AS problem_difficulty,
     content.view_count,
     content.download_count,
     content.published_at
@@ -153,6 +181,27 @@ const approvedResourceSelectSql = `
    AND revision.content_id = content.id
   JOIN coursedekho.content_submission AS submission
     ON submission.id = revision.submission_id
+  LEFT JOIN coursedekho.study_material_detail AS study_detail
+    ON study_detail.content_id = content.id
+   AND revision.resource_type = 'study_material'
+  LEFT JOIN coursedekho.practice_material_detail AS practice_detail
+    ON practice_detail.content_id = content.id
+   AND revision.resource_type = 'practice_material'
+  LEFT JOIN coursedekho.book_detail AS book_detail
+    ON book_detail.content_id = content.id
+   AND revision.resource_type = 'book'
+  LEFT JOIN coursedekho.tutorial_detail AS tutorial_detail
+    ON tutorial_detail.content_id = content.id
+   AND revision.resource_type = 'tutorial'
+  LEFT JOIN coursedekho.slide_detail AS slide_detail
+    ON slide_detail.content_id = content.id
+   AND revision.resource_type = 'slide'
+  LEFT JOIN coursedekho.question_detail AS question_detail
+    ON question_detail.content_id = content.id
+   AND revision.resource_type = 'question'
+  LEFT JOIN coursedekho.leetcode_problem_detail AS leetcode_detail
+    ON leetcode_detail.content_id = content.id
+   AND revision.resource_type = 'leetcode_problem'
   JOIN coursedekho.topic AS topic
     ON topic.id = content.topic_id
   JOIN coursedekho.course AS course
@@ -165,6 +214,15 @@ const approvedResourceSelectSql = `
   JOIN coursedekho.app_user AS contributor
     ON contributor.id = revision.contributed_by_user_id
   WHERE submission.status = 'approved'
+    AND num_nonnulls(
+      study_detail.content_id,
+      practice_detail.content_id,
+      book_detail.content_id,
+      tutorial_detail.content_id,
+      slide_detail.content_id,
+      question_detail.content_id,
+      leetcode_detail.content_id
+    ) = 1
     AND content.is_active
     AND content.published_at IS NOT NULL
     AND topic.is_active

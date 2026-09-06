@@ -30,6 +30,9 @@ interface NavItem {
 const commonNavItems: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: Home },
   { label: "Courses", href: "/courses", icon: BookOpen },
+];
+
+const learnerNavItems: NavItem[] = [
   { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
   { label: "My Progress", href: "/progress", icon: TrendingUp },
   { label: "Access History", href: "/access-history", icon: History },
@@ -54,6 +57,7 @@ export function Sidebar() {
   // Build the nav list based on role: everyone gets the common items,
   // plus one extra role-specific item for teachers/admins.
   const roleNavItems = user.role === "teacher" ? teacherNavItems : user.role === "admin" ? adminNavItems : [];
+  const activityNavItems = user.role === "admin" ? [] : learnerNavItems;
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
@@ -63,6 +67,10 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3">
         {commonNavItems.map((item) => (
+          <SidebarLink key={item.href} item={item} active={pathname === item.href} />
+        ))}
+
+        {activityNavItems.map((item) => (
           <SidebarLink key={item.href} item={item} active={pathname === item.href} />
         ))}
 

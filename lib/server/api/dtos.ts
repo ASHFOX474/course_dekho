@@ -1,4 +1,5 @@
 import type {
+  BookmarkTargetType,
   EnrollmentStatus,
   ResourceType,
   SubmissionStatus,
@@ -89,6 +90,45 @@ export interface TopicSummaryDto {
   subtopics: string[];
 }
 
+export type ApprovedResourceDetailsDto =
+  | {
+      type: "study_material" | "practice_material";
+      materialType: string | null;
+      fileUrl: string | null;
+      fileSizeBytes: number | null;
+    }
+  | {
+      type: "book";
+      bookTitle: string;
+      author: string | null;
+      publisher: string | null;
+      fileUrl: string | null;
+    }
+  | {
+      type: "tutorial";
+      tutorialTitle: string;
+      tutorialContent: string | null;
+      fileUrl: string | null;
+    }
+  | {
+      type: "slide";
+      slideTitle: string;
+      slideContent: string | null;
+      fileUrl: string | null;
+    }
+  | {
+      type: "question";
+      questionText: string;
+      difficulty: string | null;
+      points: number | null;
+    }
+  | {
+      type: "leetcode_problem";
+      problemTitle: string;
+      problemUrl: string | null;
+      difficulty: string | null;
+    };
+
 export interface ApprovedResourceDto {
   id: string;
   topicId: string;
@@ -100,6 +140,7 @@ export interface ApprovedResourceDto {
   year: number | null;
   topicsCovered: string[];
   fileSizeBytes: number | null;
+  details?: ApprovedResourceDetailsDto;
   views: number;
   downloads: number;
   uploadedAt: string;
@@ -146,4 +187,89 @@ export interface CreateSubmissionRequestDto {
 
 export interface RejectSubmissionRequestDto {
   reason: string;
+}
+
+export interface UserProfileDto {
+  user: UserSummaryDto;
+  university: UniversitySummaryDto | null;
+  department: string | null;
+  yearOfStudy: number | null;
+  designation: string | null;
+}
+
+export interface LearningCourseDto {
+  enrollmentId: string;
+  courseId: string;
+  code: string;
+  name: string;
+  status: EnrollmentStatus;
+  enrolledAt: string;
+  progressPercent: number;
+}
+
+export interface TopicProgressDto {
+  id: string;
+  topicId: string;
+  topicName: string;
+  courseId: string;
+  courseCode: string;
+  courseName: string;
+  progressPercent: number;
+  completed: boolean;
+  lastAccessedAt: string;
+}
+
+export interface LearningOverviewDto {
+  courses: LearningCourseDto[];
+  topics: TopicProgressDto[];
+}
+
+export interface BookmarkDto {
+  id: string;
+  targetType: BookmarkTargetType;
+  targetId: string;
+  title: string;
+  subtitle: string;
+  resourceType: ResourceType | null;
+  courseId: string | null;
+  createdAt: string;
+}
+
+export interface CreateBookmarkRequestDto {
+  targetType: BookmarkTargetType;
+  targetId: string;
+}
+
+export interface ProgressRequestDto {
+  progressPercent: number;
+}
+
+export interface AccessHistoryDto {
+  id: string;
+  resourceId: string;
+  resourceTitle: string;
+  resourceType: ResourceType;
+  courseId: string;
+  courseCode: string;
+  topicId: string;
+  topicName: string;
+  accessedAt: string;
+}
+
+export interface SolvedQuestionDto {
+  id: string;
+  resourceId: string;
+  title: string;
+  courseId: string;
+  courseCode: string;
+  topicId: string;
+  topicName: string;
+  solvedAt: string;
+}
+
+export interface AdminStatsDto {
+  userCount: number;
+  courseCount: number;
+  publishedResourceCount: number;
+  submissionCount: number;
 }

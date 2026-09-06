@@ -75,6 +75,7 @@ const resource = {
   year: 2024,
   topicsCovered: ["Shortest Paths"],
   fileSizeBytes: 2048,
+  details: { type: "question", questionText: "Final questions.", difficulty: "medium", points: 100 },
   views: 12,
   downloads: 4,
   uploadedAt: new Date("2026-08-21T10:00:00.000Z"),

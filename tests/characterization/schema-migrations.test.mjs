@@ -28,6 +28,7 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
       "0003_learning_activity.sql",
       "0004_integrity_indexes.sql",
       "0005_auth_sessions.sql",
+      "0006_restore_semester_scope.sql",
     ]
   );
 

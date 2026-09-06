@@ -1,6 +1,6 @@
 # CourseDekho PostgreSQL baseline
 
-This directory is the canonical database definition for the PostgreSQL-backed API. The content UI remains mock-backed, while authentication now uses PostgreSQL. The five SQL migrations create a new `coursedekho` schema without altering legacy objects in `public`.
+This directory is the canonical database definition for the PostgreSQL-backed API. Authentication, the academic catalog, learning activity, bookmarks, submissions, and review workflows use PostgreSQL. The five SQL migrations create a new `coursedekho` schema without altering legacy objects in `public`.
 
 ## Identity and routing decisions
 

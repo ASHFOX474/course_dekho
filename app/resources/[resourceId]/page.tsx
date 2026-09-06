@@ -18,7 +18,15 @@ import {
   type CourseSummaryDto,
   type TopicSummaryDto,
 } from "@/lib/client/catalog-api";
-import { useData } from "@/lib/store/DataContext";
+import {
+  createBookmark,
+  deleteBookmark,
+  listBookmarks,
+  listSolvedQuestions,
+  markResourceSolved,
+  recordResourceAccess,
+} from "@/lib/client/workspace-api";
+import { useDatabaseData } from "@/lib/client/use-database-data";
 import { cn, formatDate } from "@/lib/utils";
 
 function errorMessage(error: unknown): string {
@@ -29,7 +37,17 @@ export default function ResourceDetailPage() {
   const params = useParams<{ resourceId: string }>();
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { isBookmarked, toggleBookmark } = useData();
+  const isLearner = user?.role === "student" || user?.role === "teacher";
+  const bookmarks = useDatabaseData(
+    `resource-bookmarks:${user?.id ?? "anonymous"}:${user?.role ?? "none"}`,
+    isLearner ? listBookmarks : async () => [],
+    []
+  );
+  const solved = useDatabaseData(
+    `resource-solved:${user?.id ?? "anonymous"}:${user?.role ?? "none"}`,
+    isLearner ? listSolvedQuestions : async () => [],
+    []
+  );
   const [resource, setResource] = useState<ApprovedResourceDto | null>(null);
   const [course, setCourse] = useState<CourseSummaryDto | null>(null);
   const [topic, setTopic] = useState<TopicSummaryDto | null>(null);
@@ -52,6 +70,7 @@ export default function ResourceDetailPage() {
         setCourse(courseResponse);
         setTopic(topicResponse.find((item) => item.id === resourceResponse.topicId) ?? null);
         setError(null);
+        if (user.role !== "admin") void recordResourceAccess(resourceResponse.id).catch(() => undefined);
       })
       .catch((requestError: unknown) => {
         if (!controller.signal.aborted) setError(errorMessage(requestError));
@@ -82,10 +101,34 @@ export default function ResourceDetailPage() {
   }
 
   const displayType = resourceTypeLabel(resource.type);
-  const bookmarked = user ? isBookmarked("resource", resource.id) : false;
-  const bookmarkSubtitle = course
-    ? `${course.code}${topic ? ` > ${topic.name}` : ""}`
-    : "";
+  const bookmark = bookmarks.data.find(
+    (item) => item.targetType === "resource" && item.targetId === resource.id
+  );
+  const bookmarked = Boolean(bookmark);
+  const isSolved = solved.data.some((item) => item.resourceId === resource.id);
+  async function toggleResourceBookmark() {
+    try {
+      if (bookmark) {
+        await deleteBookmark(bookmark.id);
+        bookmarks.setData((current) => current.filter((item) => item.id !== bookmark.id));
+      } else {
+        const created = await createBookmark({ targetType: "resource", targetId: resource!.id });
+        bookmarks.setData((current) => [created, ...current]);
+      }
+      bookmarks.refresh();
+    } catch (requestError) {
+      setError(errorMessage(requestError));
+    }
+  }
+
+  async function markSolved() {
+    try {
+      solved.setData(await markResourceSolved(resource!.id));
+      solved.refresh();
+    } catch (requestError) {
+      setError(errorMessage(requestError));
+    }
+  }
 
   return (
     <AppShell title={resource.title}>
@@ -110,17 +153,9 @@ export default function ResourceDetailPage() {
           </div>
 
           <div className="flex gap-2">
-            <button
+            {isLearner && <button
               type="button"
-              onClick={() =>
-                toggleBookmark({
-                  targetType: "resource",
-                  targetId: resource.id,
-                  title: resource.title,
-                  subtitle: bookmarkSubtitle,
-                  resourceType: displayType,
-                })
-              }
+              onClick={() => void toggleResourceBookmark()}
               className={cn(
                 "flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-sm font-medium",
                 bookmarked
@@ -130,7 +165,15 @@ export default function ResourceDetailPage() {
             >
               <Bookmark size={15} fill={bookmarked ? "currentColor" : "none"} />
               {bookmarked ? "Bookmarked" : "Bookmark"}
-            </button>
+            </button>}
+            {isLearner && resource.type === "question" && <button
+              type="button"
+              disabled={isSolved}
+              onClick={() => void markSolved()}
+              className="rounded-lg border border-emerald-200 px-3.5 py-2 text-sm font-medium text-emerald-700 disabled:bg-emerald-50"
+            >
+              {isSolved ? "Solved" : "Mark solved"}
+            </button>}
             <button
               type="button"
               disabled

@@ -78,6 +78,45 @@ export interface Topic {
   subtopics: Subtopic[];
 }
 
+export type ApprovedResourceDetails =
+  | {
+      type: "study_material" | "practice_material";
+      materialType: string | null;
+      fileUrl: string | null;
+      fileSizeBytes: number | null;
+    }
+  | {
+      type: "book";
+      bookTitle: string;
+      author: string | null;
+      publisher: string | null;
+      fileUrl: string | null;
+    }
+  | {
+      type: "tutorial";
+      tutorialTitle: string;
+      tutorialContent: string | null;
+      fileUrl: string | null;
+    }
+  | {
+      type: "slide";
+      slideTitle: string;
+      slideContent: string | null;
+      fileUrl: string | null;
+    }
+  | {
+      type: "question";
+      questionText: string;
+      difficulty: string | null;
+      points: number | null;
+    }
+  | {
+      type: "leetcode_problem";
+      problemTitle: string;
+      problemUrl: string | null;
+      difficulty: string | null;
+    };
+
 export interface ApprovedResource {
   id: PublicId;
   topicId: PublicId;
@@ -89,6 +128,7 @@ export interface ApprovedResource {
   year: number | null;
   topicsCovered: string[];
   fileSizeBytes: number | null;
+  details?: ApprovedResourceDetails;
   views: number;
   downloads: number;
   uploadedAt: Date;
@@ -117,4 +157,82 @@ export interface Enrollment {
   courseId: PublicId;
   status: EnrollmentStatus;
   enrolledAt: Date;
+}
+
+export type BookmarkTargetType = "course" | "topic" | "resource";
+
+export interface UserProfile {
+  user: AuthenticatedUser;
+  university: UniversitySummary | null;
+  department: string | null;
+  yearOfStudy: number | null;
+  designation: string | null;
+}
+
+export interface LearningCourse {
+  enrollmentId: PublicId;
+  courseId: PublicId;
+  code: string;
+  name: string;
+  status: EnrollmentStatus;
+  enrolledAt: Date;
+  progressPercent: number;
+}
+
+export interface TopicProgressView {
+  id: PublicId;
+  topicId: PublicId;
+  topicName: string;
+  courseId: PublicId;
+  courseCode: string;
+  courseName: string;
+  progressPercent: number;
+  completed: boolean;
+  lastAccessedAt: Date;
+}
+
+export interface LearningOverview {
+  courses: LearningCourse[];
+  topics: TopicProgressView[];
+}
+
+export interface BookmarkView {
+  id: PublicId;
+  targetType: BookmarkTargetType;
+  targetId: PublicId;
+  title: string;
+  subtitle: string;
+  resourceType: ResourceType | null;
+  courseId: PublicId | null;
+  createdAt: Date;
+}
+
+export interface AccessHistoryView {
+  id: PublicId;
+  resourceId: PublicId;
+  resourceTitle: string;
+  resourceType: ResourceType;
+  courseId: PublicId;
+  courseCode: string;
+  topicId: PublicId;
+  topicName: string;
+  accessedAt: Date;
+}
+
+export interface SolvedQuestionView {
+  id: PublicId;
+  resourceId: PublicId;
+  title: string;
+  courseId: PublicId;
+  courseCode: string;
+  topicId: PublicId;
+  topicName: string;
+  solvedAt: Date;
+}
+
+export interface AdminStats {
+  userCount: number;
+  courseCount: number;
+  publishedResourceCount: number;
+  submissionCount: number;
 }

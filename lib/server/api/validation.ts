@@ -1,8 +1,11 @@
 import { ValidationError } from "./errors.ts";
 import { resourceTypes } from "../domain/models.ts";
 import type {
+  CreateBookmarkRequestDto,
+  CreateEnrollmentRequestDto,
   CreateSubmissionRequestDto,
   LoginRequestDto,
+  ProgressRequestDto,
   RegisterRequestDto,
   RejectSubmissionRequestDto,
 } from "./dtos.ts";
@@ -168,6 +171,57 @@ export function validateRejectSubmissionRequest(value: unknown): RejectSubmissio
   const reason = readText(value.reason, "reason", 1000, errors);
   throwIfInvalid(errors);
   return { reason };
+}
+
+export function validateCreateEnrollmentRequest(value: unknown): CreateEnrollmentRequestDto {
+  if (!isObject(value)) {
+    throw new ValidationError("Request validation failed.", {
+      body: ["Request body must be a JSON object."],
+    });
+  }
+  const errors: FieldErrors = {};
+  rejectUnknownFields(value, ["courseId"], errors);
+  const courseId = readPublicId(value.courseId, "courseId", errors);
+  throwIfInvalid(errors);
+  return { courseId };
+}
+
+export function validateBookmarkRequest(value: unknown): CreateBookmarkRequestDto {
+  if (!isObject(value)) {
+    throw new ValidationError("Request validation failed.", {
+      body: ["Request body must be a JSON object."],
+    });
+  }
+  const errors: FieldErrors = {};
+  rejectUnknownFields(value, ["targetType", "targetId"], errors);
+  const targetType = value.targetType;
+  if (targetType !== "course" && targetType !== "topic" && targetType !== "resource") {
+    addError(errors, "targetType", "targetType must be course, topic, or resource.");
+  }
+  const targetId = readPublicId(value.targetId, "targetId", errors);
+  throwIfInvalid(errors);
+  return { targetType: targetType as CreateBookmarkRequestDto["targetType"], targetId };
+}
+
+export function validateProgressRequest(value: unknown): ProgressRequestDto {
+  if (!isObject(value)) {
+    throw new ValidationError("Request validation failed.", {
+      body: ["Request body must be a JSON object."],
+    });
+  }
+  const errors: FieldErrors = {};
+  rejectUnknownFields(value, ["progressPercent"], errors);
+  const progressPercent = value.progressPercent;
+  if (
+    typeof progressPercent !== "number" ||
+    !Number.isInteger(progressPercent) ||
+    progressPercent < 0 ||
+    progressPercent > 100
+  ) {
+    addError(errors, "progressPercent", "progressPercent must be an integer from 0 to 100.");
+  }
+  throwIfInvalid(errors);
+  return { progressPercent: progressPercent as number };
 }
 
 export function validateRegisterRequest(value: unknown): RegisterRequestDto {
