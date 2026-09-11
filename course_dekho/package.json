@@ -1,0 +1,35 @@
+{
+  "name": "coursedekho",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:migrate": "node scripts/db/migrate.mjs",
+    "db:status": "node scripts/db/migrate.mjs --status",
+    "db:seed": "node scripts/db/seed.mjs",
+    "db:verify": "node scripts/db/verify.mjs",
+    "test": "node --test tests/characterization/*.test.mjs",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-include='lib/domain/critical-behavior.ts' --test-coverage-include='lib/server/**/*.ts' --test-coverage-lines=80 --test-coverage-branches=80 --test-coverage-functions=80 tests/characterization/*.test.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^1.31.0",
+    "next": "16.2.10",
+    "pg": "^8.22.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

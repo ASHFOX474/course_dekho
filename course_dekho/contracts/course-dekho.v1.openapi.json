@@ -1,0 +1,1057 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CourseDekho API",
+    "version": "1.0.0",
+    "description": "Authoritative contract for the first PostgreSQL-backed CourseDekho API. Database rows are not public response contracts."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same-origin Next.js application"
+    }
+  ],
+  "x-contract-owner": "CourseDekho maintainers",
+  "x-compatibility": "Within /api/v1, optional fields and enum values may only be added after consumer review. Required-field changes, field removal, or semantic repurposing require a new API version.",
+  "x-role-permissions": {
+    "student": [
+      "browse_approved_content",
+      "bookmark_content",
+      "track_progress",
+      "solve_question",
+      "view_learning_history"
+    ],
+    "teacher": [
+      "browse_approved_content",
+      "bookmark_content",
+      "track_progress",
+      "solve_question",
+      "view_learning_history",
+      "submit_content",
+      "view_own_submissions"
+    ],
+    "admin": [
+      "browse_approved_content",
+      "approve_submission",
+      "reject_submission",
+      "manage_academic_structure",
+      "manage_resources",
+      "manage_users"
+    ]
+  },
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "operationId": "registerUser",
+        "summary": "Create a student or teacher account and authenticated session",
+        "description": "Public registration never creates admin accounts. User, role profile, and initial session are committed atomically.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account and authenticated session created",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Opaque HTTP-only session cookie",
+                "schema": { "type": "string" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "loginUser",
+        "summary": "Authenticate by username or email and rotate the session",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Credentials accepted and a fresh session created",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Opaque HTTP-only session cookie",
+                "schema": { "type": "string" }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logoutUser",
+        "summary": "Revoke the current session and expire its cookie",
+        "security": [{ "SessionCookie": [] }],
+        "responses": {
+          "204": {
+            "description": "Session revoked",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Expired HTTP-only session cookie",
+                "schema": { "type": "string" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/session": {
+      "get": {
+        "operationId": "getSession",
+        "summary": "Return the authenticated user",
+        "security": [{ "SessionCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "Authenticated session",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/universities": {
+      "get": {
+        "operationId": "listUniversities",
+        "summary": "Browse active universities",
+        "x-permission": "browse_approved_content",
+        "security": [{ "SessionCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "Active university collection",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UniversityListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/universities/{universityId}/semesters": {
+      "get": {
+        "operationId": "listUniversitySemesters",
+        "summary": "Browse active semesters in database order",
+        "x-permission": "browse_approved_content",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/UniversityId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered active semester collection",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SemesterListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/courses": {
+      "get": {
+        "operationId": "listCourses",
+        "summary": "Browse courses",
+        "x-permission": "browse_approved_content",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          {
+            "name": "universityId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "semesterId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "format": "uuid" }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "minLength": 1, "maxLength": 100 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Course collection",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CourseListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/courses/{courseId}": {
+      "get": {
+        "operationId": "getCourse",
+        "summary": "Return one active course",
+        "x-permission": "browse_approved_content",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/CourseId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active course",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CourseResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/courses/{courseId}/topics": {
+      "get": {
+        "operationId": "listCourseTopics",
+        "summary": "Return a course roadmap in database order",
+        "x-permission": "browse_approved_content",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/CourseId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered topic collection",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TopicListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/courses/{courseId}/resources": {
+      "get": {
+        "operationId": "listCourseResources",
+        "summary": "Return active published resources for an active course",
+        "description": "This operation must never serialize pending, rejected, inactive, or orphaned submission content.",
+        "x-permission": "browse_approved_content",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/CourseId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active published-resource collection",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApprovedResourceListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/topics/{topicId}/resources": {
+      "get": {
+        "operationId": "listTopicResources",
+        "summary": "Return published resources for a topic",
+        "description": "This operation must never serialize pending, rejected, inactive, or orphaned submission content.",
+        "x-permission": "browse_approved_content",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/TopicId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active published-resource collection",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApprovedResourceListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/resources/{resourceId}": {
+      "get": {
+        "operationId": "getApprovedResource",
+        "summary": "Return one active published resource",
+        "description": "Pending, rejected, inactive, and orphaned submission content is indistinguishable from not found.",
+        "x-permission": "browse_approved_content",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/ResourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active published resource",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApprovedResourceResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/enrollments": {
+      "post": {
+        "operationId": "enrollInCourse",
+        "summary": "Explicitly enroll the authenticated learner in a course",
+        "description": "The provider derives userId from the session. Student and teacher roles may enroll. Progress never creates enrollment implicitly.",
+        "x-permission": "track_progress",
+        "security": [{ "SessionCookie": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateEnrollmentRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Enrollment created or a dropped enrollment reactivated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EnrollmentResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/api/v1/enrollments/{courseId}": {
+      "delete": {
+        "operationId": "dropCourseEnrollment",
+        "summary": "Mark the authenticated learner's enrollment as dropped",
+        "x-permission": "track_progress",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/CourseId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Enrollment retained with dropped status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/EnrollmentResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/api/v1/submissions": {
+      "post": {
+        "operationId": "createSubmission",
+        "summary": "Create a pending teacher submission",
+        "description": "teacherId, status, and submittedAt are always derived by the provider and cannot be supplied by the client.",
+        "x-permission": "submit_content",
+        "security": [{ "SessionCookie": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateSubmissionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pending submission created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubmissionResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/api/v1/submissions/mine": {
+      "get": {
+        "operationId": "listOwnSubmissions",
+        "summary": "Return only the authenticated teacher's submissions",
+        "x-permission": "view_own_submissions",
+        "security": [{ "SessionCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "Submission collection including rejection reasons",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubmissionListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/admin/submissions": {
+      "get": {
+        "operationId": "listSubmissionsForReview",
+        "summary": "Return submissions visible to an admin reviewer",
+        "x-permission": "approve_submission",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": { "$ref": "#/components/schemas/SubmissionStatus" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submission review collection",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubmissionListResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/admin/submissions/{submissionId}/approve": {
+      "post": {
+        "operationId": "approveSubmission",
+        "summary": "Atomically approve and publish a pending submission",
+        "description": "The provider must perform a conditional pending-to-approved transition and content publication in one database transaction. Repeated review returns INVALID_TRANSITION.",
+        "x-permission": "approve_submission",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/SubmissionId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submission approved and resource published",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApprovalResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/InvalidTransition" }
+        }
+      }
+    },
+    "/api/v1/admin/submissions/{submissionId}/reject": {
+      "post": {
+        "operationId": "rejectSubmission",
+        "summary": "Reject a pending submission with a reason",
+        "x-permission": "reject_submission",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/SubmissionId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RejectSubmissionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Submission rejected with review metadata",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SubmissionResponse" }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/InvalidTransition" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "course_dekho_session"
+      }
+    },
+    "parameters": {
+      "UniversityId": {
+        "name": "universityId",
+        "in": "path",
+        "required": true,
+        "description": "Canonical public university UUID.",
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "CourseId": {
+        "name": "courseId",
+        "in": "path",
+        "required": true,
+        "description": "Opaque course identifier; consumers must not parse it as a number.",
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "TopicId": {
+        "name": "topicId",
+        "in": "path",
+        "required": true,
+        "description": "Opaque topic identifier; consumers must not parse it as a number.",
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "ResourceId": {
+        "name": "resourceId",
+        "in": "path",
+        "required": true,
+        "description": "Canonical public resource UUID.",
+        "schema": { "type": "string", "format": "uuid" }
+      },
+      "SubmissionId": {
+        "name": "submissionId",
+        "in": "path",
+        "required": true,
+        "description": "Opaque submission identifier; consumers must not parse it as a number.",
+        "schema": { "type": "string", "minLength": 1 }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "No valid authenticated session",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Authenticated role does not have the required permission",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Requested entity does not exist or is not visible to this actor",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Request conflicts with current persistent state",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      },
+      "InvalidTransition": {
+        "description": "The requested workflow transition is not legal from the current status",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Request payload failed validation",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "UserRole": {
+        "type": "string",
+        "enum": ["student", "teacher", "admin"]
+      },
+      "SelfRegistrationRole": {
+        "type": "string",
+        "enum": ["student", "teacher"]
+      },
+      "ResourceType": {
+        "type": "string",
+        "enum": [
+          "study_material",
+          "practice_material",
+          "book",
+          "tutorial",
+          "slide",
+          "question",
+          "leetcode_problem"
+        ]
+      },
+      "SubmissionStatus": {
+        "type": "string",
+        "enum": ["pending", "approved", "rejected"]
+      },
+      "EnrollmentStatus": {
+        "type": "string",
+        "enum": ["active", "completed", "dropped"]
+      },
+      "UserSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "username", "email", "role"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "username": { "type": "string", "minLength": 1 },
+          "email": { "type": "string", "format": "email" },
+          "role": { "$ref": "#/components/schemas/UserRole" }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "email", "username", "password", "role", "universityId"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "email": { "type": "string", "format": "email", "maxLength": 254 },
+          "username": { "type": "string", "pattern": "^[a-zA-Z0-9_]{3,32}$" },
+          "password": { "type": "string", "minLength": 12, "maxLength": 128, "writeOnly": true },
+          "role": { "$ref": "#/components/schemas/SelfRegistrationRole" },
+          "universityId": { "type": "string", "format": "uuid" },
+          "department": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "yearOfStudy": { "type": "integer", "minimum": 1, "maximum": 6 },
+          "designation": { "type": "string", "minLength": 1, "maxLength": 160 }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["identifier", "password"],
+        "properties": {
+          "identifier": { "type": "string", "minLength": 1, "maxLength": 254 },
+          "password": { "type": "string", "minLength": 1, "maxLength": 128, "writeOnly": true }
+        }
+      },
+      "ContributorSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 }
+        }
+      },
+      "UniversitySummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "shortName"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "shortName": { "type": "string", "minLength": 1 }
+        }
+      },
+      "SemesterSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "universityId", "name", "sortOrder"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "universityId": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "sortOrder": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "CourseSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "code", "name", "description", "university", "semester"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "code": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "university": { "$ref": "#/components/schemas/UniversitySummary" },
+          "semester": { "$ref": "#/components/schemas/SemesterSummary" }
+        }
+      },
+      "TopicSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "courseId", "name", "description", "sequenceOrder", "subtopics"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "courseId": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "sequenceOrder": { "type": "integer", "minimum": 1 },
+          "subtopics": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      "ApprovedResource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "topicId",
+          "courseId",
+          "type",
+          "title",
+          "description",
+          "addedBy",
+          "uploadedAt",
+          "publicationStatus",
+          "isActive",
+          "topicsCovered",
+          "views",
+          "downloads"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "topicId": { "type": "string", "minLength": 1 },
+          "courseId": { "type": "string", "minLength": 1 },
+          "type": { "$ref": "#/components/schemas/ResourceType" },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "addedBy": { "$ref": "#/components/schemas/ContributorSummary" },
+          "year": { "type": ["integer", "null"] },
+          "topicsCovered": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "fileSizeBytes": { "type": ["integer", "null"], "minimum": 0 },
+          "views": { "type": "integer", "minimum": 0 },
+          "downloads": { "type": "integer", "minimum": 0 },
+          "uploadedAt": { "type": "string", "format": "date-time" },
+          "publicationStatus": { "const": "published" },
+          "isActive": { "const": true }
+        }
+      },
+      "Enrollment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "userId", "courseId", "status", "enrolledAt"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "userId": { "type": "string", "minLength": 1 },
+          "courseId": { "type": "string", "minLength": 1 },
+          "status": { "$ref": "#/components/schemas/EnrollmentStatus" },
+          "enrolledAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Submission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "teacher",
+          "resourceType",
+          "title",
+          "description",
+          "courseId",
+          "courseCode",
+          "topicId",
+          "topicName",
+          "status",
+          "submittedAt",
+          "reviewedBy",
+          "reviewedAt",
+          "rejectionReason"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "teacher": { "$ref": "#/components/schemas/ContributorSummary" },
+          "resourceType": { "$ref": "#/components/schemas/ResourceType" },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "courseId": { "type": "string", "minLength": 1 },
+          "courseCode": { "type": "string", "minLength": 1 },
+          "topicId": { "type": "string", "minLength": 1 },
+          "topicName": { "type": "string", "minLength": 1 },
+          "status": { "$ref": "#/components/schemas/SubmissionStatus" },
+          "submittedAt": { "type": "string", "format": "date-time" },
+          "reviewedBy": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/ContributorSummary" },
+              { "type": "null" }
+            ]
+          },
+          "reviewedAt": { "type": ["string", "null"], "format": "date-time" },
+          "rejectionReason": { "type": ["string", "null"] }
+        }
+      },
+      "CreateEnrollmentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["courseId"],
+        "properties": {
+          "courseId": { "type": "string", "minLength": 1 }
+        }
+      },
+      "CreateSubmissionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resourceType", "title", "description", "courseId", "topicId"],
+        "properties": {
+          "resourceType": { "$ref": "#/components/schemas/ResourceType" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "description": { "type": "string", "minLength": 1, "maxLength": 5000 },
+          "courseId": { "type": "string", "minLength": 1 },
+          "topicId": { "type": "string", "minLength": 1 }
+        }
+      },
+      "RejectSubmissionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason"],
+        "properties": {
+          "reason": { "type": "string", "minLength": 1, "maxLength": 1000 }
+        }
+      },
+      "UserResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/UserSummary" }
+        }
+      },
+      "UniversityListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/UniversitySummary" }
+          }
+        }
+      },
+      "SemesterListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SemesterSummary" }
+          }
+        }
+      },
+      "CourseListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/CourseSummary" }
+          }
+        }
+      },
+      "CourseResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CourseSummary" }
+        }
+      },
+      "TopicListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TopicSummary" }
+          }
+        }
+      },
+      "ApprovedResourceListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ApprovedResource" }
+          }
+        }
+      },
+      "ApprovedResourceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/ApprovedResource" }
+        }
+      },
+      "EnrollmentResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/Enrollment" }
+        }
+      },
+      "SubmissionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": { "$ref": "#/components/schemas/Submission" }
+        }
+      },
+      "SubmissionListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Submission" }
+          }
+        }
+      },
+      "ApprovalResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["submission", "resource"],
+            "properties": {
+              "submission": { "$ref": "#/components/schemas/Submission" },
+              "resource": { "$ref": "#/components/schemas/ApprovedResource" }
+            }
+          }
+        }
+      },
+      "ApiError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "message"],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "UNAUTHENTICATED",
+                  "FORBIDDEN",
+                  "NOT_FOUND",
+                  "VALIDATION_ERROR",
+                  "CONFLICT",
+                  "INVALID_TRANSITION",
+                  "INTERNAL_ERROR"
+                ]
+              },
+              "message": { "type": "string", "minLength": 1 },
+              "fieldErrors": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

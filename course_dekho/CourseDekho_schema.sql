@@ -1,0 +1,13 @@
+-- CourseDekho canonical schema entry point
+--
+-- The destructive prototype schema formerly stored in this file has been
+-- retired. Apply the immutable, forward-only files in database/migrations in
+-- filename order with:
+--
+--     npm run db:migrate
+--
+-- The new objects live in the coursedekho schema. Existing public-schema
+-- prototype tables are intentionally left untouched so populated databases
+-- can be migrated through a separately reviewed data-import migration.
+--
+-- This compatibility file intentionally contains no executable DDL.
