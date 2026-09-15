@@ -184,6 +184,7 @@ export interface CreateSubmissionRequestDto {
   description: string;
   courseId: string;
   topicId: string;
+  externalUrl?: string;
 }
 
 export interface RejectSubmissionRequestDto {

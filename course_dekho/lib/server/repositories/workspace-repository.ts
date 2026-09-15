@@ -1,3 +1,4 @@
+import type { StoredFile } from "../storage/files.ts";
 import {
   queryAccessHistory,
   queryAdminStats,
@@ -66,6 +67,8 @@ export interface WorkspaceRepository {
     description: string;
     courseId: string;
     topicId: string;
+    externalUrl?: string;
+    file?: StoredFile;
   }): Promise<Submission | null>;
   approveSubmission(input: {
     submissionId: string;
@@ -173,6 +176,8 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     description: string;
     courseId: string;
     topicId: string;
+    externalUrl?: string;
+    file?: StoredFile;
   }): Promise<Submission | null> {
     const id = await queryCreateSubmission(this.executor, input);
     return id ? this.findSubmission(id) : null;

@@ -53,11 +53,11 @@ async function requestData<T>(
     method: options.method ?? "GET",
     credentials: "same-origin",
     cache: "no-store",
-    headers: options.body === undefined ? { accept: "application/json" } : {
+    headers: options.body === undefined || options.body instanceof FormData ? { accept: "application/json" } : {
       accept: "application/json",
       "content-type": "application/json",
     },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body: options.body === undefined ? undefined : options.body instanceof FormData ? options.body : JSON.stringify(options.body),
     signal: options.signal,
   });
   const body = await readBody(response);
@@ -66,7 +66,7 @@ async function requestData<T>(
     throw new WorkspaceApiError(
       response.status,
       error?.code ?? "INTERNAL_ERROR",
-      error?.message ?? "The database request failed."
+      error?.fieldErrors ? Object.values(error.fieldErrors).flat().join(" ") : error?.message ?? "The database request failed."
     );
   }
   if (response.status === 204) return undefined as T;
@@ -105,8 +105,11 @@ export const listOwnSubmissions = (signal?: AbortSignal) =>
   requestData<SubmissionDto[]>("/api/v1/submissions/mine", { signal });
 export const listSubmissionsForReview = (signal?: AbortSignal) =>
   requestData<SubmissionDto[]>("/api/v1/admin/submissions", { signal });
-export const createSubmission = (input: CreateSubmissionRequestDto) =>
-  requestData<SubmissionDto>("/api/v1/submissions", { method: "POST", body: input });
+export const createSubmission = (input: CreateSubmissionRequestDto & { file?: File }) => {
+  const body = new FormData();
+  for (const [key, value] of Object.entries(input)) if (value !== undefined) body.append(key, value);
+  return requestData<SubmissionDto>("/api/v1/submissions", { method: "POST", body });
+};
 export const approveSubmission = (submissionId: string) =>
   requestData<SubmissionDto>(`/api/v1/admin/submissions/${encodeURIComponent(submissionId)}/approve`, { method: "POST" });
 export const rejectSubmission = (submissionId: string, reason: string) =>

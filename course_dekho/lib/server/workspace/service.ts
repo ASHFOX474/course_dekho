@@ -1,3 +1,4 @@
+import type { StoredFile } from "../storage/files.ts";
 import type { Pool } from "pg";
 
 import { ConflictError, InvalidTransitionError, NotFoundError } from "../api/errors.ts";
@@ -128,6 +129,8 @@ export class WorkspaceService {
       description: string;
       courseId: string;
       topicId: string;
+      externalUrl?: string;
+      file?: StoredFile;
     }
   ) {
     requireRole(actor, ["contributor"]);

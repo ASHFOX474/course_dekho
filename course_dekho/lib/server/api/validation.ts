@@ -133,7 +133,7 @@ export function validateCreateSubmissionRequest(value: unknown): CreateSubmissio
   const errors: FieldErrors = {};
   rejectUnknownFields(
     value,
-    ["resourceType", "title", "description", "courseId", "topicId"],
+    ["resourceType", "title", "description", "courseId", "topicId", "externalUrl"],
     errors
   );
 
@@ -149,6 +149,17 @@ export function validateCreateSubmissionRequest(value: unknown): CreateSubmissio
   const description = readText(value.description, "description", 5000, errors);
   const courseId = readPublicId(value.courseId, "courseId", errors);
   const topicId = readPublicId(value.topicId, "topicId", errors);
+  let externalUrl: string | undefined;
+  if (value.externalUrl !== undefined && value.externalUrl !== "") {
+    if (typeof value.externalUrl !== "string" || value.externalUrl.length > 2000) addError(errors, "externalUrl", "Enter a valid link up to 2000 characters.");
+    else {
+      try {
+        const url = new URL(value.externalUrl);
+        if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error();
+        externalUrl = url.href;
+      } catch { addError(errors, "externalUrl", "Enter a valid http or https link."); }
+    }
+  }
   throwIfInvalid(errors);
 
   return {
@@ -157,6 +168,7 @@ export function validateCreateSubmissionRequest(value: unknown): CreateSubmissio
     description,
     courseId,
     topicId,
+    ...(externalUrl ? { externalUrl } : {}),
   };
 }
 

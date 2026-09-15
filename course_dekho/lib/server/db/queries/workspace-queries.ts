@@ -1,3 +1,4 @@
+import type { StoredFile } from "../../storage/files.ts";
 import type { DatabaseExecutor } from "../executor.ts";
 import type {
   AccessHistoryViewRow,
@@ -588,18 +589,20 @@ export async function queryCreateSubmission(
     description: string;
     courseId: string;
     topicId: string;
+    externalUrl?: string;
+    file?: StoredFile;
   }
 ): Promise<string | null> {
   const result = await executor.query<
     { submission_public_id: string },
-    [string, ResourceType, string, string, string, string]
+    [string, ResourceType, string, string, string, string, string | null, string | null, string | null, string | null, number | null, string | null]
   >({
-    name: "workspace-create-submission-v1",
+    name: "workspace-create-submission-v2",
     text: `
       INSERT INTO coursedekho.content_submission (
-        submitted_by_user_id, topic_id, resource_type, title, description
+        submitted_by_user_id, topic_id, resource_type, title, description, external_url, storage_key, original_file_name, mime_type, file_size_bytes, checksum_sha256
       )
-      SELECT contributor.id, topic.id, $2, $3, $4
+      SELECT contributor.id, topic.id, $2, $3, $4, $7, $8, $9, $10, $11, $12
       FROM coursedekho.app_user AS contributor
       CROSS JOIN coursedekho.topic AS topic
       JOIN coursedekho.course AS course ON course.id = topic.course_id
@@ -619,6 +622,12 @@ export async function queryCreateSubmission(
       input.description,
       input.courseId,
       input.topicId,
+      input.externalUrl ?? null,
+      input.file?.storageKey ?? null,
+      input.file?.originalFileName ?? null,
+      input.file?.mimeType ?? null,
+      input.file?.fileSizeBytes ?? null,
+      input.file?.checksumSha256 ?? null,
     ],
   });
   return result.rows[0]?.submission_public_id ?? null;

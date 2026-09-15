@@ -3,10 +3,22 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookMarked, CheckCircle2, Compass, Eye, EyeOff, Sparkles, TrendingUp } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { listPublicUniversities } from "@/lib/client/catalog-api";
 import type { UniversitySummaryDto } from "@/lib/server/api/dtos";
 import { Logo } from "@/components/ui/Logo";
+
+// Use learner theme for public login page
+const loginTheme = {
+  inputBorder: 'border-blue-200',
+  inputFocusBorder: 'focus:border-blue-400',
+  inputFocusRing: 'focus:ring-2 focus:ring-blue-100',
+  primaryBg: 'bg-blue-600',
+  primaryHover: 'hover:bg-blue-700',
+  accentBg: 'bg-blue-50',
+  accentText: 'text-blue-600',
+};
 
 const featureBullets = [
   { icon: Compass, text: "Organized Roadmaps" },
@@ -192,7 +204,7 @@ export default function LoginPage() {
 
           {mode === "signup" && pendingApprovalName ? (
             <div className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <div className={cn("mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full", loginTheme.accentBg, loginTheme.accentText)}>
                 <CheckCircle2 size={24} />
               </div>
               <h2 className="text-xl font-bold text-slate-900">Account created</h2>
@@ -203,7 +215,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => switchMode("login")}
-                className="mt-6 w-full rounded-lg bg-violet-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700"
+                className={cn("mt-6 w-full rounded-lg py-2.5 text-sm font-semibold text-white transition-colors", loginTheme.primaryBg, loginTheme.primaryHover)}
               >
                 Back to Login
               </button>
@@ -224,7 +236,7 @@ export default function LoginPage() {
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     placeholder="Enter username or email"
-                    className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                    className={cn("w-full rounded-lg border px-3.5 py-2.5 text-sm focus:outline-none", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                   />
                 </div>
 
@@ -239,7 +251,7 @@ export default function LoginPage() {
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="Enter password"
-                      className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 pr-10 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      className={cn("w-full rounded-lg border px-3.5 py-2.5 pr-10 text-sm focus:outline-none", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                     />
                     <button
                       type="button"
@@ -251,7 +263,7 @@ export default function LoginPage() {
                     </button>
                   </div>
                   <div className="mt-1 text-right">
-                    <span className="text-xs font-medium text-violet-600">Forgot Password?</span>
+                    <span className={cn("text-xs font-medium", loginTheme.accentText)}>Forgot Password?</span>
                   </div>
                 </div>
 
@@ -264,7 +276,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full rounded-lg bg-violet-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
+                  className={cn("w-full rounded-lg py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-wait disabled:opacity-60", loginTheme.primaryBg, loginTheme.primaryHover)}
                 >
                   {isSubmitting ? "Signing in..." : "Login"}
                 </button>
@@ -300,7 +312,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => switchMode("signup")}
-                  className="font-medium text-violet-600 hover:underline"
+                  className={cn("font-medium hover:underline", loginTheme.accentText)}
                 >
                   Sign up
                 </button>
@@ -326,7 +338,7 @@ export default function LoginPage() {
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Your full name"
                     maxLength={120}
-                    className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                    className={cn("w-full rounded-lg border px-3.5 py-2.5 text-sm focus:outline-none", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                   />
                   {fieldError("name") && <p className="mt-1 text-xs text-rose-600">{fieldError("name")}</p>}
                 </div>
@@ -342,7 +354,7 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     maxLength={254}
-                    className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                    className={cn("w-full rounded-lg border px-3.5 py-2.5 text-sm focus:outline-none", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                   />
                   {fieldError("email") && <p className="mt-1 text-xs text-rose-600">{fieldError("email")}</p>}
                 </div>
@@ -358,7 +370,7 @@ export default function LoginPage() {
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="lowercase letters, numbers, underscore"
                     maxLength={32}
-                    className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                    className={cn("w-full rounded-lg border px-3.5 py-2.5 text-sm focus:outline-none", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                   />
                   {fieldError("username") && (
                     <p className="mt-1 text-xs text-rose-600">{fieldError("username")}</p>
@@ -376,7 +388,7 @@ export default function LoginPage() {
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
                       placeholder="At least 12 characters"
-                      className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 pr-10 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      className={cn("w-full rounded-lg border px-3.5 py-2.5 pr-10 text-sm focus:outline-none", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                     />
                     <button
                       type="button"
@@ -400,11 +412,7 @@ export default function LoginPage() {
                         key={option}
                         type="button"
                         onClick={() => setRole(option)}
-                        className={`rounded-lg border px-3.5 py-2.5 text-sm font-medium capitalize transition-colors ${
-                          role === option
-                            ? "border-violet-400 bg-violet-50 text-violet-700"
-                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                        }`}
+                        className={cn(`rounded-lg border px-3.5 py-2.5 text-sm font-medium capitalize transition-colors`, role === option ? cn(loginTheme.inputFocusBorder, loginTheme.accentBg, loginTheme.accentText) : 'border-slate-200 text-slate-600 hover:bg-slate-50')}
                       >
                         {option}
                       </button>
@@ -421,7 +429,7 @@ export default function LoginPage() {
                     value={universityId}
                     onChange={(e) => setUniversityId(e.target.value)}
                     disabled={universitiesLoading || universities.length === 0}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                    className={cn("w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                   >
                     {universitiesLoading && <option>Loading universities...</option>}
                     {!universitiesLoading && universities.length === 0 && (
@@ -455,7 +463,7 @@ export default function LoginPage() {
                       value={yearOfStudy}
                       onChange={(e) => setYearOfStudy(e.target.value)}
                       placeholder="1–6"
-                      className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+                      className={cn("w-full rounded-lg border px-3.5 py-2.5 text-sm focus:outline-none", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                     />
                     {fieldError("yearOfStudy") && (
                       <p className="mt-1 text-xs text-rose-600">{fieldError("yearOfStudy")}</p>
@@ -472,7 +480,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting || universitiesLoading || universities.length === 0}
-                  className="w-full rounded-lg bg-violet-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={cn("w-full rounded-lg py-2.5 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60", loginTheme.primaryBg, loginTheme.primaryHover)}
                 >
                   {isSubmitting ? "Creating account..." : "Sign up"}
                 </button>
@@ -483,7 +491,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => switchMode("login")}
-                  className="font-medium text-violet-600 hover:underline"
+                  className={cn("font-medium hover:underline", loginTheme.accentText)}
                 >
                   Login
                 </button>

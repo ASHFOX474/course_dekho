@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { getTheme } from "@/lib/theme";
 import {
   listCourses,
   listSemesters,
@@ -21,6 +23,7 @@ function errorMessage(error: unknown): string {
 
 export default function CoursesPage() {
   const { user, isLoading: isAuthLoading } = useAuth();
+  const theme = getTheme(user?.role ?? 'learner');
   const [universities, setUniversities] = useState<UniversitySummaryDto[]>([]);
   const [semesters, setSemesters] = useState<SemesterSummaryDto[]>([]);
   const [semestersForUniversityId, setSemestersForUniversityId] = useState("");
@@ -113,7 +116,7 @@ export default function CoursesPage() {
                 setSemesterId("");
               }}
               aria-label="Filter by university"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 focus:border-violet-400 focus:outline-none"
+              className={cn("rounded-lg border bg-white px-3 py-2 text-sm text-slate-600", theme.inputBorder, "focus:outline-none", theme.inputFocusBorder)}
             >
               <option value="">All Universities</option>
               {universities.map((university) => (
@@ -128,7 +131,7 @@ export default function CoursesPage() {
               onChange={(event) => setSemesterId(event.target.value)}
               disabled={!universityId}
               aria-label="Filter by semester"
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:bg-slate-100 focus:border-violet-400 focus:outline-none"
+              className={cn("rounded-lg border bg-white px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:bg-slate-100", theme.inputBorder, "focus:outline-none", theme.inputFocusBorder)}
             >
               <option value="">All Semesters</option>
               {visibleSemesters.map((semester) => (
@@ -149,7 +152,7 @@ export default function CoursesPage() {
                 maxLength={100}
                 placeholder="Search courses..."
                 aria-label="Search courses"
-                className="rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-violet-400 focus:outline-none"
+                className={cn("rounded-lg border bg-white py-2 pl-8 pr-3 text-sm", theme.inputBorder, "focus:outline-none", theme.inputFocusBorder)}
               />
             </div>
           </div>
@@ -166,11 +169,11 @@ export default function CoursesPage() {
             <Link
               key={course.id}
               href={`/courses/${course.id}`}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors hover:border-violet-300"
+              className={cn("rounded-2xl border p-4 shadow-sm transition-colors", theme.cardBg, theme.cardBorder, "hover:" + theme.cardHoverBorder)}
             >
               <p className="text-sm font-bold text-slate-900">{course.code}</p>
               <p className="text-sm text-slate-600">{course.name}</p>
-              <p className="mt-3 text-xs text-slate-400">
+              <p className={cn("mt-3 text-xs", theme.accentColor)}>
                 {course.university.shortName} &middot; {course.semester.name}
               </p>
               <p className="mt-3 line-clamp-2 text-xs text-slate-500">

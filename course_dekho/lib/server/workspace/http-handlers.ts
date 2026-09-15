@@ -1,3 +1,4 @@
+import { readSubmissionForm, saveFile, removeFile } from "../storage/files.ts";
 import { ValidationError, mapErrorToApi } from "../api/errors.ts";
 import {
   toAccessHistoryDto,
@@ -195,8 +196,13 @@ export function createWorkspaceHttpHandlers(dependencies: WorkspaceHttpDependenc
       try {
         assertSafeMutation(request, dependencies);
         const actor = await actorFor(request, dependencies, ["contributor"]);
-        const input = validateCreateSubmissionRequest(await readJsonObject(request));
-        const submission = await dependencies.workspaceService.createSubmission(actor, input);
+        const parsed = request.headers.get("content-type")?.startsWith("multipart/form-data")
+          ? await readSubmissionForm(request) : { input: await readJsonObject(request), file: undefined };
+        const input = validateCreateSubmissionRequest(parsed.input);
+        const file = parsed.file ? await saveFile(parsed.file) : undefined;
+        let submission;
+        try { submission = await dependencies.workspaceService.createSubmission(actor, { ...input, ...(file ? { file } : {}) }); }
+        catch (error) { if (file) await removeFile(file.storageKey).catch(() => undefined); throw error; }
         return jsonResponse({ data: toSubmissionDto(submission) }, 201);
       } catch (error) { return errorResponse(error, dependencies); }
     },

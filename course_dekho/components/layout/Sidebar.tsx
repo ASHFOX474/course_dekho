@@ -16,8 +16,11 @@ import {
   Upload,
   User,
   UserCheck,
+  Plus,
+  Layers,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { getTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/Logo";
 
@@ -27,29 +30,35 @@ interface NavItem {
   icon: LucideIcon;
 }
 
-/** Every role sees these — reading, browsing and tracking their own activity. */
-const commonNavItems: NavItem[] = [
+/** Learner/Student navigation */
+const learnerNav: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: Home },
   { label: "Courses", href: "/courses", icon: BookOpen },
-];
-
-const learnerNavItems: NavItem[] = [
   { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
   { label: "My Progress", href: "/progress", icon: TrendingUp },
   { label: "Access History", href: "/access-history", icon: History },
   { label: "Solved Questions", href: "/solved-questions", icon: CheckCircle2 },
 ];
 
-const contributorNavItems: NavItem[] = [
+/** Teacher/Contributor navigation */
+const teacherNav: NavItem[] = [
+  { label: "Home", href: "/dashboard", icon: Home },
+  { label: "Courses", href: "/courses", icon: BookOpen },
+  { label: "Suggest Courses", href: "/contributor/courses", icon: Plus },
   { label: "My Submissions", href: "/contributor/submissions", icon: Upload },
+  { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
 ];
 
-const adminNavItems: NavItem[] = [
+/** Admin navigation */
+const adminNav: NavItem[] = [
+  { label: "Dashboard", href: "/dashboard", icon: Home },
+  { label: "Courses", href: "/courses", icon: BookOpen },
+  { label: "Manage Courses", href: "/admin/courses", icon: Layers },
   { label: "Material Approvals", href: "/admin/approvals", icon: ShieldCheck },
   { label: "User Approvals", href: "/admin/user-approvals", icon: UserCheck },
 ];
 
-const accountNavItems: NavItem[] = [
+const accountNav: NavItem[] = [
   { label: "Profile", href: "/profile", icon: User },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
@@ -60,44 +69,37 @@ export function Sidebar() {
 
   if (!user) return null;
 
-  // Build the nav list based on role: everyone gets the common items,
-  // plus one extra role-specific item for contributors/admins.
-  const roleNavItems =
-    user.role === "contributor" ? contributorNavItems : user.role === "admin" ? adminNavItems : [];
-  const activityNavItems = user.role === "admin" ? [] : learnerNavItems;
+  const theme = getTheme(user.role);
+  const navItems =
+    user.role === "contributor"
+      ? teacherNav
+      : user.role === "admin"
+        ? adminNav
+        : learnerNav;
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
+    <aside className={cn("flex h-full w-60 shrink-0 flex-col", `border-r ${theme.sidebarBg} ${theme.sidebarBorder}`)}>
       <div className="px-5 py-5">
         <Logo />
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-        {commonNavItems.map((item) => (
-          <SidebarLink key={item.href} item={item} active={pathname === item.href} />
+        {navItems.map((item) => (
+          <SidebarLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href)} theme={theme} />
         ))}
-
-        {activityNavItems.map((item) => (
-          <SidebarLink key={item.href} item={item} active={pathname === item.href} />
-        ))}
-
-        {roleNavItems.length > 0 && (
-          <>
-            <div className="my-2 border-t border-slate-100" />
-            {roleNavItems.map((item) => (
-              <SidebarLink key={item.href} item={item} active={pathname.startsWith(item.href)} />
-            ))}
-          </>
-        )}
       </nav>
 
-      <div className="space-y-1 border-t border-slate-100 px-3 py-3">
-        {accountNavItems.map((item) => (
-          <SidebarLink key={item.href} item={item} active={pathname === item.href} />
+      <div className={cn("space-y-1 border-t px-3 py-3", `border-${theme.dividerColor}`)}>
+        {accountNav.map((item) => (
+          <SidebarLink key={item.href} item={item} active={pathname === item.href} theme={theme} />
         ))}
         <button
           onClick={() => void logout()}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-rose-600"
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500",
+            theme.navHoverBg,
+            "hover:text-rose-600"
+          )}
         >
           <LogOut size={17} />
           Logout
@@ -107,14 +109,14 @@ export function Sidebar() {
   );
 }
 
-function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
+function SidebarLink({ item, active, theme }: { item: NavItem; active: boolean; theme: ReturnType<typeof getTheme> }) {
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-        active ? "bg-violet-50 text-violet-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+        active ? cn(theme.navActiveBg, theme.navActiveText) : cn("text-slate-600", theme.navHoverBg, "hover:text-slate-900")
       )}
     >
       <Icon size={17} />

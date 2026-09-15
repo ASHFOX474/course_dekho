@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Bookmark, Download, ImageIcon } from "lucide-react";
+import { ArrowLeft, Bookmark } from "lucide-react";
 
+import { Attachment } from "@/components/ui/Attachment";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -174,15 +175,7 @@ export default function ResourceDetailPage() {
             >
               {isSolved ? "Solved" : "Mark solved"}
             </button>}
-            <button
-              type="button"
-              disabled
-              title="File delivery will be enabled by the storage API"
-              className="flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-slate-300 px-3.5 py-2 text-sm font-semibold text-white"
-            >
-              <Download size={15} />
-              Download
-            </button>
+
           </div>
         </div>
 
@@ -208,14 +201,7 @@ export default function ResourceDetailPage() {
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="mb-3 text-sm font-semibold text-slate-900">Preview</h3>
-              <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-slate-300">
-                <div className="text-center">
-                  <ImageIcon size={28} className="mx-auto mb-1" />
-                  <p className="text-xs">
-                    Preview requires the future signed-file delivery API.
-                  </p>
-                </div>
-              </div>
+              <Attachment id={resource.id} kind="resources" preview />
             </section>
           </div>
 
