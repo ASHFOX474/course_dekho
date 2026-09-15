@@ -86,8 +86,6 @@ export default function LoginPage() {
 
     let ignore = false;
     const controller = new AbortController();
-    setUniversitiesLoading(true);
-    setUniversitiesError("");
 
     listPublicUniversities(controller.signal)
       .then((data) => {
@@ -109,6 +107,7 @@ export default function LoginPage() {
   }, [mode]);
 
   function switchMode(next: Mode) {
+    if (next === "signup") { setUniversitiesLoading(true); setUniversitiesError(""); }
     setMode(next);
     setError("");
     setFieldErrors({});
@@ -281,31 +280,6 @@ export default function LoginPage() {
                   {isSubmitting ? "Signing in..." : "Login"}
                 </button>
               </form>
-
-              <div className="my-5 flex items-center gap-3 text-xs text-slate-400">
-                <div className="h-px flex-1 bg-slate-200" />
-                or continue with
-                <div className="h-px flex-1 bg-slate-200" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  disabled
-                  title="Unavailable — use the database-backed form above"
-                  className="cursor-not-allowed rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-400"
-                >
-                  Google
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  title="Unavailable — use the database-backed form above"
-                  className="cursor-not-allowed rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-400"
-                >
-                  Microsoft
-                </button>
-              </div>
 
               <p className="mt-6 text-center text-sm text-slate-500">
                 Don&apos;t have an account?{" "}

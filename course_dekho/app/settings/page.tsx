@@ -1,56 +1,17 @@
 "use client";
-
 import { useState } from "react";
+import Link from "next/link";
+import { SlidersHorizontal, ArrowUpRight } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-
-const initialToggles = [
-  { key: "email", label: "Email me about approval decisions", enabled: true },
-  { key: "digest", label: "Weekly progress digest", enabled: true },
-  { key: "newContent", label: "Notify me about new resources in my courses", enabled: false },
-];
-
+import { useAuth } from "@/lib/auth/AuthContext";
+import { usePreferences } from "@/lib/client/preferences";
 export default function SettingsPage() {
-  return (
-    <AppShell title="Settings">
-      <SettingsContent />
-    </AppShell>
-  );
+  const { user } = useAuth();
+  return <AppShell title="Preferences">{user && <Preferences userId={user.id} />}</AppShell>;
 }
-
-function SettingsContent() {
-  const [toggles, setToggles] = useState(initialToggles);
-
-  function toggle(key: string) {
-    setToggles((prev) => prev.map((t) => (t.key === key ? { ...t, enabled: !t.enabled } : t)));
-  }
-
-  return (
-    <div className="mx-auto max-w-lg space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="mb-4 text-sm font-semibold text-slate-900">Notification Preferences</h3>
-        <ul className="space-y-4">
-          {toggles.map((t) => (
-            <li key={t.key} className="flex items-center justify-between gap-4">
-              <span className="text-sm text-slate-700">{t.label}</span>
-              <button
-                onClick={() => toggle(t.key)}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                  t.enabled ? "bg-violet-600" : "bg-slate-200"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                    t.enabled ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <p className="text-center text-xs text-slate-400">
-        These toggles are local to this session — nothing is persisted without a real backend.
-      </p>
-    </div>
-  );
+function Preferences({ userId }: { userId: string }) {
+  const { preferences, update } = usePreferences(userId);
+  const [message, setMessage] = useState("");
+  function save(next: typeof preferences) { try { update(next); setMessage("Preferences saved in this browser."); } catch { setMessage("Your browser could not save preferences. Check its storage settings."); } }
+  return <div className="mx-auto max-w-2xl space-y-6"><div><p className="page-kicker mb-2">Make it yours</p><h2 className="page-title">Workspace preferences</h2><p className="mt-3 text-sm text-slate-500">These settings apply to your account in this browser.</p></div><section className="panel"><div className="panel-heading"><h3>Display & accessibility</h3><SlidersHorizontal size={18} className="text-slate-400" /></div><div className="divide-y divide-slate-100 px-6">{([{ key: "compact", label: "Compact workspace", description: "Reduce page spacing and table row height." }, { key: "reduceMotion", label: "Reduce motion", description: "Turn off interface animations and transitions." }] as const).map(item => <label key={item.key} className="flex cursor-pointer items-center justify-between gap-5 py-6"><span><span className="block text-sm font-semibold">{item.label}</span><span className="mt-1 block text-xs text-slate-500">{item.description}</span></span><input type="checkbox" role="switch" checked={preferences[item.key]} onChange={event => save({ ...preferences, [item.key]: event.target.checked })} className="h-5 w-5 accent-slate-700" /></label>)}</div><div className="border-t border-slate-100 px-6 py-4"><button onClick={() => save({ compact: false, reduceMotion: false })} className="text-xs font-semibold text-slate-600 underline">Restore defaults</button></div></section>{message && <p role="status" className="text-sm text-slate-600">{message}</p>}<Link href="/profile" className="panel flex items-center justify-between p-6"><span><span className="block text-sm font-semibold">Account details</span><span className="mt-1 block text-xs text-slate-500">View your profile and university information.</span></span><ArrowUpRight size={18} /></Link></div>;
 }

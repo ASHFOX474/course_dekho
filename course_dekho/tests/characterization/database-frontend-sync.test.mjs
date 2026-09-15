@@ -10,9 +10,9 @@ const learner = {
   name: "Rafiul Islam",
   username: "rafiul",
   email: "rafiul@example.com",
-  role: "student",
+  role: "learner",
 };
-const teacher = { ...learner, id: "00000000-0000-4000-8000-000000000102", role: "teacher" };
+const teacher = { ...learner, id: "00000000-0000-4000-8000-000000000102", role: "contributor" };
 const admin = { ...learner, id: "00000000-0000-4000-8000-000000000103", role: "admin" };
 const courseId = "00000000-0000-4000-8000-000000000401";
 const topicId = "00000000-0000-4000-8000-000000000505";
@@ -150,7 +150,7 @@ test("workspace handlers enforce learner, teacher, and admin roles inside handle
           if (property === "listBookmarks" || property === "listSubmissions") return [];
           if (property === "approveSubmission") return {
             id: submissionId,
-            teacher: { id: teacher.id, name: teacher.name },
+            contributor: { id: teacher.id, name: teacher.name },
             resourceType: "question",
             title: "Graph Questions",
             description: "Questions",
@@ -239,7 +239,7 @@ test("approval is executed through one transaction and publishes only after revi
   const pool = { async connect() { calls.push("CONNECT"); return client; } };
   const reviewed = {
     id: submissionId,
-    teacher: { id: teacher.id, name: teacher.name },
+    contributor: { id: teacher.id, name: teacher.name },
     resourceType: "question",
     title: "Graph Questions",
     description: "Questions",
@@ -281,7 +281,7 @@ test("all formerly mocked pages consume the database workspace client", async ()
     "app/bookmarks/page.tsx",
     "app/access-history/page.tsx",
     "app/solved-questions/page.tsx",
-    "app/teacher/submissions/page.tsx",
+    "app/contributor/submissions/page.tsx",
     "app/admin/approvals/page.tsx",
     "app/courses/[courseId]/topics/[topicId]/page.tsx",
     "app/resources/[resourceId]/page.tsx",

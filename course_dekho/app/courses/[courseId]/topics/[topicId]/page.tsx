@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Bookmark, ChevronRight, Download } from "lucide-react";
+import { Bookmark, ChevronRight, ExternalLink } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { ResourceTypeIcon } from "@/components/ui/ResourceTypeIcon";
@@ -215,13 +215,7 @@ export default function TopicResourcesPage() {
                         >
                           <Bookmark size={15} fill={bookmarked ? "currentColor" : "none"} />
                         </button>}
-                        <button
-                          type="button"
-                          title="Download"
-                          className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100"
-                        >
-                          <Download size={15} />
-                        </button>
+                        <Link href={`/resources/${resource.id}`} title="Open resource and attachments" aria-label={`Open ${resource.title}`} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100"><ExternalLink size={15} /></Link>
                       </div>
                     </td>
                   </tr>

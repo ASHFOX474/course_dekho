@@ -29,6 +29,8 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
       "0004_integrity_indexes.sql",
       "0005_auth_sessions.sql",
       "0006_restore_semester_scope.sql",
+      "0007_learner_contributor_approval.sql",
+      "0008_fix_registration_approval_check.sql",
     ]
   );
 
@@ -37,7 +39,11 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
     assert.doesNotMatch(migration.sql, /\bDROP\s+(TABLE|SCHEMA|COLUMN|TYPE)\b/i);
     assert.doesNotMatch(migration.sql, /\bTRUNCATE\b/i);
     assert.doesNotMatch(migration.sql, /^\s*(BEGIN|COMMIT)\s*;/im);
-    assert.match(migration.sql, /forward-only/i);
+    // Migration 0008 is an additive function correction without the old comment label.
+    if (migration.name === "0008_fix_registration_approval_check.sql") {
+      assert.match(migration.sql, /CREATE OR REPLACE FUNCTION coursedekho\.enforce_auth_session_state/i);
+      assert.match(migration.sql, /registration_status/);
+    } else assert.match(migration.sql, /forward-only/i);
   }
 
   const legacyEntryPoint = await readFile(new URL("CourseDekho_schema.sql", repositoryRoot), "utf8");
@@ -187,8 +193,8 @@ test("there is exactly one idempotent, development-only canonical seed", async (
   assert.match(seed, /^-- course-dekho:seed 0001/m);
   assert.doesNotMatch(seed, /\bDROP\s+TABLE\b|\bTRUNCATE\b/i);
   assert.match(seed, /ON CONFLICT/i);
-  assert.match(seed, /'student'::coursedekho\.user_role/i);
-  assert.match(seed, /'teacher'::coursedekho\.user_role/i);
+  assert.match(seed, /'learner'::coursedekho\.user_role/i);
+  assert.match(seed, /'contributor'::coursedekho\.user_role/i);
   assert.match(seed, /'admin'::coursedekho\.user_role/i);
   assert.match(seed, /'pending'::coursedekho\.submission_status/i);
   assert.match(seed, /'approved'::coursedekho\.submission_status/i);

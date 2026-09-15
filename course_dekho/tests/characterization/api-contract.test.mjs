@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { userRoles } from '../../lib/server/domain/models.ts';
 
 const contractUrl = new URL("../../contracts/course-dekho.v1.openapi.json", import.meta.url);
 
@@ -57,7 +58,7 @@ test("contract freezes status, resource-type, and error enums", async () => {
   const contract = await loadContract();
   const schemas = contract.components.schemas;
 
-  assert.deepEqual(schemas.UserRole.enum, ["student", "teacher", "admin"]);
+  assert.deepEqual(schemas.UserRole.enum, [...userRoles]);
   assert.deepEqual(schemas.EnrollmentStatus.enum, ["active", "completed", "dropped"]);
   assert.deepEqual(schemas.SubmissionStatus.enum, ["pending", "approved", "rejected"]);
   assert.deepEqual(schemas.ResourceType.enum, [
@@ -77,14 +78,14 @@ test("contract freezes the role permission matrix", async () => {
   const contract = await loadContract();
 
   assert.deepEqual(contract["x-role-permissions"], {
-    student: [
+    learner: [
       "browse_approved_content",
       "bookmark_content",
       "track_progress",
       "solve_question",
       "view_learning_history",
     ],
-    teacher: [
+    contributor: [
       "browse_approved_content",
       "bookmark_content",
       "track_progress",
@@ -175,7 +176,7 @@ test("public registration cannot create admins and passwords are write-only", as
   const contract = await loadContract();
   const schemas = contract.components.schemas;
 
-  assert.deepEqual(schemas.SelfRegistrationRole.enum, ["student", "teacher"]);
+  assert.deepEqual(schemas.SelfRegistrationRole.enum, ["learner", "contributor"]);
   assert.equal(
     schemas.RegisterRequest.properties.role.$ref,
     "#/components/schemas/SelfRegistrationRole"
@@ -185,6 +186,22 @@ test("public registration cannot create admins and passwords are write-only", as
   assert.equal(schemas.LoginRequest.properties.password.writeOnly, true);
   assert.equal("password" in schemas.UserSummary.properties, false);
   assert.equal("passwordHash" in schemas.UserSummary.properties, false);
+  const registered = contract.paths['/api/v1/auth/register'].post.responses['201'];
+  assert.equal(registered.headers?.['Set-Cookie'], undefined);
+  assert.equal(registered.content['application/json'].schema.$ref, '#/components/schemas/PendingRegistrationResponse');
+  assert.equal(schemas.PendingRegistrationResponse.properties.data.properties.status.const, 'pending');
+});
+
+test('submission contract supports uploaded files and external links without client-controlled ownership', async () => {
+  const contract = await loadContract();
+  const content = contract.paths['/api/v1/submissions'].post.requestBody.content;
+  assert.ok(content['application/json']);
+  assert.equal(content['multipart/form-data'].schema.$ref, '#/components/schemas/MultipartSubmissionRequest');
+  const properties = contract.components.schemas.MultipartSubmissionRequest.properties;
+  assert.equal(properties.file.format, 'binary');
+  assert.equal(properties.externalUrl.maxLength, 2000);
+  assert.equal('contributorId' in properties, false);
+  assert.equal('storageKey' in properties, false);
 });
 
 test("protected operations declare cookie authentication in addition to permissions", async () => {

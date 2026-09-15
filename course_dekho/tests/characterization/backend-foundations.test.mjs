@@ -57,15 +57,15 @@ test("request validation rejects unknown fields and aggregates field-specific er
         description: "x".repeat(5001),
         courseId: "not-a-uuid",
         topicId,
-        teacherId: "client-controlled",
+        contributorId: "client-controlled",
       }),
     (error) => {
       assert.ok(error instanceof ValidationError);
       assert.deepEqual(Object.keys(error.fieldErrors).sort(), [
+        "contributorId",
         "courseId",
         "description",
         "resourceType",
-        "teacherId",
         "title",
       ]);
       return true;
@@ -333,14 +333,14 @@ test("catalog repository uses typed prepared queries and returns domain models",
 test("submission repository maps nullable review fields without exposing row names", async () => {
   const executor = {
     async query(config) {
-      assert.equal(config.name, "submission-list-by-teacher-v1");
+      assert.equal(config.name, "submission-list-by-contributor-v1");
       assert.deepEqual(config.values, ["00000000-0000-4000-8000-000000000102"]);
       return {
         rows: [
           {
             submission_public_id: "00000000-0000-4000-8000-000000000702",
-            teacher_public_id: "00000000-0000-4000-8000-000000000102",
-            teacher_name: "Dr. Sharif Ahmed",
+            contributor_public_id: "00000000-0000-4000-8000-000000000102",
+            contributor_name: "Dr. Sharif Ahmed",
             resource_type: "study_material",
             title: "Dynamic Programming Notes",
             description: "Memoization and tabulation.",
@@ -362,7 +362,7 @@ test("submission repository maps nullable review fields without exposing row nam
   };
   const repository = new PostgresSubmissionRepository(executor);
 
-  const submissions = await repository.listByTeacher("00000000-0000-4000-8000-000000000102");
+  const submissions = await repository.listByContributor("00000000-0000-4000-8000-000000000102");
 
   assert.equal(submissions[0].status, "pending");
   assert.equal(submissions[0].reviewedBy, null);
@@ -436,7 +436,7 @@ test("API mappers emit contract DTOs with camelCase fields and UTC timestamps", 
   };
   const submission = {
     id: "00000000-0000-4000-8000-000000000702",
-    teacher: resource.addedBy,
+    contributor: resource.addedBy,
     resourceType: "study_material",
     title: "Notes",
     description: "Description",

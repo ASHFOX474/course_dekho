@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 
 export function useDatabaseData<T>(
   key: string,
@@ -9,13 +9,21 @@ export function useDatabaseData<T>(
 ) {
   const loaderRef = useRef(loader);
   const refreshRef = useRef<() => void>(() => undefined);
-  const [data, setData] = useState(initialValue);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState({ key, data: initialValue, isLoading: true, error: null as string | null });
+  const initialValueRef = useRef(initialValue);
 
   useEffect(() => {
     loaderRef.current = loader;
-  }, [loader]);
+    initialValueRef.current = initialValue;
+  }, [loader, initialValue]);
+
+  const setData = useCallback((update: SetStateAction<T>) => {
+    setState(current => {
+      if (current.key !== key) return current;
+      const data = typeof update === 'function' ? (update as (previous: T) => T)(current.data) : update;
+      return { ...current, data };
+    });
+  }, [key]);
 
   useEffect(() => {
     let active = true;
@@ -23,19 +31,22 @@ export function useDatabaseData<T>(
 
     async function load() {
       controller?.abort();
-      controller = new AbortController();
+      const requestController = new AbortController();
+      controller = requestController;
       try {
-        const value = await loaderRef.current(controller.signal);
-        if (active) {
-          setData(value);
-          setError(null);
+        const value = await loaderRef.current(requestController.signal);
+        if (active && !requestController.signal.aborted) {
+          setState({ key, data: value, error: null, isLoading: false });
         }
       } catch (requestError) {
-        if (active && !controller.signal.aborted) {
-          setError(requestError instanceof Error ? requestError.message : "Unable to load database data.");
+        if (active && !requestController.signal.aborted) {
+          setState(current => ({
+            key,
+            data: current.key === key ? current.data : initialValueRef.current,
+            isLoading: false,
+            error: requestError instanceof Error ? requestError.message : "Unable to load database data.",
+          }));
         }
-      } finally {
-        if (active && !controller.signal.aborted) setIsLoading(false);
       }
     }
 
@@ -55,5 +66,11 @@ export function useDatabaseData<T>(
   }, [key]);
 
   const refresh = useCallback(() => refreshRef.current(), []);
-  return { data, setData, isLoading, error, refresh };
+  return {
+    data: state.key === key ? state.data : initialValue,
+    setData,
+    isLoading: state.key !== key || state.isLoading,
+    error: state.key === key ? state.error : null,
+    refresh,
+  };
 }

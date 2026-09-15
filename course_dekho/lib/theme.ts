@@ -176,56 +176,56 @@ export const themes: Record<UserRole, RoleTheme> = {
   
   admin: {
     // Sidebar
-    sidebarBg: 'bg-amber-50',
-    sidebarBorder: 'border-amber-200',
+    sidebarBg: 'bg-slate-50',
+    sidebarBorder: 'border-slate-200',
     sidebarText: baseTheme.sidebarText,
     
     // Navigation
-    navActiveBg: 'bg-amber-100',
-    navActiveText: 'text-amber-700',
-    navHoverBg: 'hover:bg-amber-50',
-    navHoverText: 'hover:text-amber-700',
+    navActiveBg: 'bg-slate-100',
+    navActiveText: 'text-slate-700',
+    navHoverBg: 'hover:bg-slate-50',
+    navHoverText: 'hover:text-slate-700',
     
     // Avatar
-    avatarBg: 'bg-amber-600',
+    avatarBg: 'bg-slate-600',
     avatarText: 'text-white',
     
     // Buttons
-    primaryBg: 'bg-amber-600',
+    primaryBg: 'bg-slate-600',
     primaryText: 'text-white',
-    primaryHover: 'hover:bg-amber-700',
+    primaryHover: 'hover:bg-slate-700',
     secondaryBg: baseTheme.secondaryBg,
     secondaryText: baseTheme.secondaryText,
     
     // Forms & Inputs
-    inputBorder: 'border-amber-200',
-    inputFocusBorder: 'focus:border-amber-400',
-    inputFocusBg: 'focus:bg-amber-50',
+    inputBorder: 'border-slate-200',
+    inputFocusBorder: 'focus:border-slate-400',
+    inputFocusBg: 'focus:bg-slate-50',
     
     // Badges & Tags
-    badgeBg: 'bg-amber-100',
-    badgeText: 'text-amber-700',
+    badgeBg: 'bg-slate-100',
+    badgeText: 'text-slate-700',
     
     // Cards
     cardBg: 'bg-white',
-    cardBorder: 'border-amber-100',
-    cardHoverBorder: 'hover:border-amber-300',
+    cardBorder: 'border-slate-100',
+    cardHoverBorder: 'hover:border-slate-300',
     
     // Links
-    linkColor: 'text-amber-600',
-    linkHover: 'hover:text-amber-700',
+    linkColor: 'text-slate-600',
+    linkHover: 'hover:text-slate-700',
     
     // Accent
-    accentColor: 'text-amber-600',
-    accentLight: 'text-amber-400',
+    accentColor: 'text-slate-600',
+    accentLight: 'text-slate-400',
     
     // Status
     successBg: 'bg-emerald-50',
-    warningBg: 'bg-amber-50',
+    warningBg: 'bg-slate-50',
     errorBg: 'bg-red-50',
     
     // Dividers
-    dividerColor: 'border-amber-100',
+    dividerColor: 'border-slate-100',
   },
 };
 

@@ -27,7 +27,7 @@ const user = {
   name: "Rafiul Islam",
   username: "rafiul",
   email: "rafiul@example.com",
-  role: "student",
+  role: "learner",
 };
 
 test("registration validation normalizes identity fields and keeps passwords exact", () => {
@@ -37,7 +37,7 @@ test("registration validation normalizes identity fields and keeps passwords exa
       email: "  RAFIUL@Example.COM ",
       username: "  RAFIUL_1 ",
       password: "  correct horse battery  ",
-      role: "student",
+      role: "learner",
       universityId: universityId.toUpperCase(),
       department: "  CSE  ",
       yearOfStudy: 2,
@@ -47,7 +47,7 @@ test("registration validation normalizes identity fields and keeps passwords exa
       email: "rafiul@example.com",
       username: "rafiul_1",
       password: "  correct horse battery  ",
-      role: "student",
+      role: "learner",
       universityId,
       department: "CSE",
       yearOfStudy: 2,
@@ -70,7 +70,7 @@ test("public registration rejects admin creation, weak passwords, and mismatched
       email: "student@example.com",
       username: "student_user",
       password: "short",
-      role: "student",
+      role: "learner",
       universityId,
       designation: "Lecturer",
     },
@@ -79,7 +79,7 @@ test("public registration rejects admin creation, weak passwords, and mismatched
       email: "teacher@example.com",
       username: "teacher_user",
       password: "long enough password",
-      role: "teacher",
+      role: "contributor",
       universityId,
       yearOfStudy: 2,
     },
@@ -214,12 +214,12 @@ test("unsafe browser requests require a trusted same origin", () => {
 });
 
 test("handler authorization distinguishes missing sessions from wrong roles", () => {
-  assert.equal(requireRole(user, ["student"]), user);
-  assert.throws(() => requireRole(null, ["student"]), UnauthenticatedError);
-  assert.throws(() => requireRole(user, ["teacher"]), ForbiddenError);
+  assert.equal(requireRole(user, ["learner"]), user);
+  assert.throws(() => requireRole(null, ["learner"]), UnauthenticatedError);
+  assert.throws(() => requireRole(user, ["contributor"]), ForbiddenError);
 });
 
-test("registration creates the account, matching profile, and session in one transaction", async () => {
+test("registration creates a pending account and profile without issuing a session", async () => {
   const calls = [];
   const client = {
     async query(statement) {
@@ -246,7 +246,7 @@ test("registration creates the account, matching profile, and session in one tra
     },
     async createUser(input) {
       calls.push(`user:${input.role}:${input.passwordHash}`);
-      return { internalId: "101", user };
+      return { internalId: "101", registrationStatus: "approved", user };
     },
     async createStudentProfile(input) {
       calls.push(`student-profile:${input.userInternalId}:${input.universityInternalId}`);
@@ -285,23 +285,21 @@ test("registration creates the account, matching profile, and session in one tra
     email: user.email,
     username: user.username,
     password: "correct horse battery staple",
-    role: "student",
+    role: "learner",
     universityId,
     department: "CSE",
     yearOfStudy: 2,
   });
 
-  assert.equal(result.user, user);
-  assert.equal(result.sessionToken, "s".repeat(43));
-  assert.equal(result.expiresAt.toISOString(), "2026-09-07T00:00:00.000Z");
+  assert.deepEqual(result, { status: "pending", name: user.name, email: user.email, username: user.username });
+  assert.equal(result.sessionToken, undefined);
   assert.deepEqual(calls, [
     "hash:correct horse battery staple",
     "CONNECT",
     "BEGIN",
     `university:${universityId}`,
-    "user:student:encoded-password-hash",
+    "user:learner:encoded-password-hash",
     "student-profile:101:201",
-    `session:101:${"d".repeat(64)}`,
     "COMMIT",
     "RELEASE",
   ]);
@@ -313,11 +311,7 @@ test("HTTP handlers return safe envelopes and set or clear only hardened cookies
     service: {
       async register(input) {
         calls.push(["register", input.username]);
-        return {
-          user,
-          sessionToken: "s".repeat(43),
-          expiresAt: new Date("2026-09-07T00:00:00.000Z"),
-        };
+        return { status: "pending", name: user.name, email: user.email, username: user.username };
       },
       async login() {
         throw new Error("not used");
@@ -343,14 +337,14 @@ test("HTTP handlers return safe envelopes and set or clear only hardened cookies
         email: user.email,
         username: user.username,
         password: "correct horse battery staple",
-        role: "student",
+        role: "learner",
         universityId,
       }),
     })
   );
   assert.equal(registerResponse.status, 201);
-  assert.deepEqual(await registerResponse.json(), { data: user });
-  assert.match(registerResponse.headers.get("set-cookie"), /HttpOnly/);
+  assert.deepEqual(await registerResponse.json(), { data: { status: "pending", name: user.name, email: user.email, username: user.username } });
+  assert.equal(registerResponse.headers.get("set-cookie"), null);
   assert.equal(registerResponse.headers.get("cache-control"), "no-store");
 
   const token = "t".repeat(43);
@@ -377,6 +371,8 @@ test("the PostgreSQL auth repository runs every operation as a named parameteriz
     user_email: user.email,
     user_username: user.username,
     user_role: user.role,
+    registration_status: "approved",
+    rejection_reason: null,
   };
   const executor = {
     async query(config) {
@@ -408,9 +404,9 @@ test("the PostgreSQL auth repository runs every operation as a named parameteriz
       email: user.email,
       username: user.username,
       passwordHash: "encoded-password",
-      role: "student",
+      role: "learner",
     }),
-    { internalId: "101", user }
+    { internalId: "101", registrationStatus: "approved", user }
   );
   await repository.createStudentProfile({
     userInternalId: "101",
@@ -503,7 +499,7 @@ function createServiceHarness(overrides = {}) {
       calls.push(["create-session", input]);
     },
     async findCredentials() {
-      return { internalId: "101", user, passwordHash: "encoded" };
+      return { internalId: "101", registrationStatus: "approved", rejectionReason: null, user, passwordHash: "encoded" };
     },
     async findUserBySessionHash() {
       return user;
@@ -577,6 +573,16 @@ test("login uses generic failures for unknown accounts and incorrect passwords",
   );
 });
 
+test("pending and rejected accounts cannot obtain sessions even with correct passwords", async () => {
+  for (const status of ['pending', 'rejected']) {
+    const harness = createServiceHarness({ repository: {
+      async findCredentials() { return { internalId: '101', user, passwordHash: 'encoded', registrationStatus: status, rejectionReason: 'Review required' }; },
+    } });
+    await assert.rejects(harness.service.login({ identifier: user.username, password: 'correct password' }), error => error.code === (status === 'pending' ? 'ACCOUNT_PENDING_APPROVAL' : 'ACCOUNT_REJECTED'));
+    assert.equal(harness.calls.some(call => Array.isArray(call) && call[0] === 'create-session'), false);
+  }
+});
+
 test("session lookup and registration reject inactive references without partial commits", async () => {
   const session = createServiceHarness({
     repository: { async findUserBySessionHash() { return null; } },
@@ -592,7 +598,7 @@ test("session lookup and registration reject inactive references without partial
       email: user.email,
       username: user.username,
       password: "correct horse battery staple",
-      role: "student",
+      role: "learner",
       universityId,
     }),
     (error) => error instanceof ValidationError && "universityId" in error.fieldErrors
@@ -616,11 +622,12 @@ test("teacher registration creates only the teacher profile", async () => {
     email: "teacher@example.com",
     username: "teacher_user",
     password: "correct horse battery staple",
-    role: "teacher",
+    role: "contributor",
     universityId,
     designation: "Lecturer",
   });
-  assert.equal(result.user.role, "teacher");
+  assert.equal(result.status, "pending");
+  assert.equal(result.sessionToken, undefined);
   assert.equal(studentProfiles, 0);
   assert.equal(teacherProfiles, 1);
 });

@@ -7,11 +7,11 @@ import { WorkspaceService } from "../../lib/server/workspace/service.ts";
 const student = {
   id: "00000000-0000-4000-8000-000000000101",
   name: "Student",
-  username: "student",
+  username: "learner",
   email: "student@example.com",
-  role: "student",
+  role: "learner",
 };
-const teacher = { ...student, id: "00000000-0000-4000-8000-000000000102", role: "teacher" };
+const teacher = { ...student, id: "00000000-0000-4000-8000-000000000102", role: "contributor" };
 const admin = { ...student, id: "00000000-0000-4000-8000-000000000103", role: "admin" };
 const courseId = "00000000-0000-4000-8000-000000000401";
 const topicId = "00000000-0000-4000-8000-000000000501";
@@ -25,7 +25,7 @@ const profileRow = {
   user_name: student.name,
   user_email: student.email,
   user_username: student.username,
-  user_role: "student",
+  user_role: "learner",
   university_public_id: "00000000-0000-4000-8000-000000000201",
   university_name: "University",
   university_short_name: "UNI",
@@ -86,8 +86,8 @@ const solvedRow = {
 };
 const submissionRow = {
   submission_public_id: submissionId,
-  teacher_public_id: teacher.id,
-  teacher_name: teacher.name,
+  contributor_public_id: teacher.id,
+  contributor_name: teacher.name,
   resource_type: "question",
   title: "Graph Questions",
   description: "Question set",
@@ -129,10 +129,10 @@ test("workspace repository executes and maps every database workflow", async () 
         case "workspace-solved-questions-v1": return result([solvedRow]);
         case "workspace-mark-solved-v1": return result([{ internal_id: "1" }]);
         case "workspace-replace-approved-content-detail-v1": return result([{ internal_id: "20" }]);
-        case "submission-list-by-teacher-v1": return result([submissionRow]);
+        case "submission-list-by-contributor-v1": return result([submissionRow]);
         case "workspace-list-all-submissions-v1": return result([submissionRow]);
         case "submission-find-by-public-id-v1": return result([submissionRow]);
-        case "workspace-create-submission-v1": return result([{ submission_public_id: submissionId }]);
+        case "workspace-create-submission-v2": return result([{ submission_public_id: submissionId }]);
         case "workspace-lock-pending-submission-v1": return result([{ submission_internal_id: "10", target_content_internal_id: null }]);
         case "workspace-mark-submission-approved-v1": return result([{ internal_id: "10" }]);
         case "workspace-create-content-for-approved-submission-v1": return result([{ internal_id: "20" }]);
@@ -158,10 +158,10 @@ test("workspace repository executes and maps every database workflow", async () 
   assert.equal(await repository.recordAccess(student.id, resourceId), true);
   assert.equal((await repository.listSolvedQuestions(student.id))[0].resourceId, resourceId);
   assert.equal(await repository.markSolved(student.id, resourceId), true);
-  assert.equal((await repository.listSubmissionsByTeacher(teacher.id))[0].id, submissionId);
+  assert.equal((await repository.listSubmissionsByContributor(teacher.id))[0].id, submissionId);
   assert.equal((await repository.listAllSubmissions())[0].id, submissionId);
   assert.equal((await repository.findSubmission(submissionId)).id, submissionId);
-  assert.equal((await repository.createSubmission({ teacherId: teacher.id, resourceType: "question", title: "Graph", description: "Set", courseId, topicId })).id, submissionId);
+  assert.equal((await repository.createSubmission({ contributorId: teacher.id, resourceType: "question", title: "Graph", description: "Set", courseId, topicId })).id, submissionId);
   assert.equal((await repository.approveSubmission({ submissionId, reviewerId: admin.id, reviewedAt: at })).status, "approved");
   assert.equal((await repository.rejectSubmission({ submissionId, reviewerId: admin.id, reason: "Duplicate", reviewedAt: at })).id, submissionId);
   assert.deepEqual(await repository.getAdminStats(), { userCount: 3, courseCount: 1, publishedResourceCount: 1, submissionCount: 3 });
@@ -180,7 +180,7 @@ test("workspace service enforces role-scoped success paths over its repository",
   const bookmark = { id: bookmarkId, targetType: "resource", targetId: resourceId, title: "Graph", subtitle: "CSE-211", resourceType: "question", courseId, createdAt: at };
   const submission = {
     id: submissionId,
-    teacher: { id: teacher.id, name: teacher.name },
+    contributor: { id: teacher.id, name: teacher.name },
     resourceType: "question",
     title: "Graph",
     description: "Set",
@@ -206,7 +206,7 @@ test("workspace service enforces role-scoped success paths over its repository",
     async recordAccess() { return true; },
     async listSolvedQuestions() { return []; },
     async markSolved() { return true; },
-    async listSubmissionsByTeacher() { return [submission]; },
+    async listSubmissionsByContributor() { return [submission]; },
     async listAllSubmissions() { return [submission]; },
     async findSubmission() { return submission; },
     async createSubmission() { return submission; },

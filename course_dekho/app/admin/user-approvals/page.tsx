@@ -28,6 +28,7 @@ type Tab = "pending" | "all";
 export default function AdminUserApprovalsPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("pending");
+  const [search, setSearch] = useState("");
 
   const {
     data: pending,
@@ -96,6 +97,7 @@ export default function AdminUserApprovalsPage() {
   }
 
   async function deactivate(id: string) {
+    if (!window.confirm("Deactivate this account? The user will lose access, but their records will be preserved.")) return;
     setWorkingId(id);
     setMutationError(null);
     try {
@@ -113,18 +115,19 @@ export default function AdminUserApprovalsPage() {
     <AppShell title="User Approvals" allowedRoles={["admin"]}>
       <div className="space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">User Approvals</h2>
+          <p className="page-kicker mb-2">Access management</p><h2 className="page-title">User directory</h2>
           <p className="text-sm text-slate-500">
             New learner and contributor accounts wait here until an admin approves them. Separate
             from Material Approvals, which reviews submitted content, not accounts.
           </p>
         </div>
 
+        <input aria-label="Search users" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, username or email?" className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm" />
         <div className="flex flex-wrap gap-2 border-b">
           <button
             onClick={() => setTab("pending")}
             className={`border-b-2 px-3 py-2 text-sm ${
-              tab === "pending" ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500"
+              tab === "pending" ? "border-slate-800 text-slate-800" : "border-transparent text-slate-500"
             }`}
           >
             Pending Approval ({pending.length})
@@ -132,7 +135,7 @@ export default function AdminUserApprovalsPage() {
           <button
             onClick={() => setTab("all")}
             className={`border-b-2 px-3 py-2 text-sm ${
-              tab === "all" ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500"
+              tab === "all" ? "border-slate-800 text-slate-800" : "border-transparent text-slate-500"
             }`}
           >
             All Users ({activeCount} active{allUsers.length !== activeCount ? `, ${allUsers.length} total` : ""})
@@ -160,7 +163,7 @@ export default function AdminUserApprovalsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {pending.map((row) => (
+                {pending.filter(row => `${row.name} ${row.email} ${row.username}`.toLowerCase().includes(search.toLowerCase())).map((row) => (
                   <tr key={row.id}>
                     <td className="px-4 py-3 font-medium">{row.name}</td>
                     <td className="px-4 py-3 text-slate-500">{row.username}</td>
@@ -215,7 +218,7 @@ export default function AdminUserApprovalsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {allUsers.map((row) => (
+                {allUsers.filter(row => `${row.name} ${row.email} ${row.username}`.toLowerCase().includes(search.toLowerCase())).map((row) => (
                   <tr key={row.id} className={row.isActive ? "" : "opacity-50"}>
                     <td className="px-4 py-3 font-medium">{row.name}</td>
                     <td className="px-4 py-3 text-slate-500">{row.username}</td>

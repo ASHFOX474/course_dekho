@@ -16,7 +16,7 @@ export default function ProfilePage() {
   return (
     <AppShell title="Profile">
       {isLoading ? (
-        <p className="text-sm text-slate-400">Loading profile from PostgreSQL...</p>
+        <p className="text-sm text-slate-400">Loading your profile...</p>
       ) : error || !profile ? (
         <p role="alert" className="text-sm text-rose-600">{error ?? "Profile not found."}</p>
       ) : (
@@ -38,7 +38,7 @@ export default function ProfilePage() {
             {profile.yearOfStudy !== null && <Row label="Year of Study" value={String(profile.yearOfStudy)} />}
             {profile.designation && <Row label="Designation" value={profile.designation} />}
           </dl>
-          <p className="mt-5 text-center text-xs text-slate-400">This profile is read directly from the active role-profile row.</p>
+          <p className="mt-5 text-center text-xs text-slate-400">Your account and academic information.</p>
         </div>
       )}
     </AppShell>

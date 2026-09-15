@@ -105,9 +105,30 @@ export const listOwnSubmissions = (signal?: AbortSignal) =>
   requestData<SubmissionDto[]>("/api/v1/submissions/mine", { signal });
 export const listSubmissionsForReview = (signal?: AbortSignal) =>
   requestData<SubmissionDto[]>("/api/v1/admin/submissions", { signal });
-export const createSubmission = (input: CreateSubmissionRequestDto & { file?: File }) => {
+export const createSubmission = (input: CreateSubmissionRequestDto & { file?: File }, onProgress?: (percent: number) => void) => {
   const body = new FormData();
   for (const [key, value] of Object.entries(input)) if (value !== undefined) body.append(key, value);
+  if (onProgress) return new Promise<SubmissionDto>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/v1/submissions');
+    xhr.setRequestHeader('accept', 'application/json');
+    xhr.upload.onprogress = event => {
+      if (event.lengthComputable) onProgress(Math.round(event.loaded / event.total * 100));
+    };
+    xhr.onerror = () => reject(new Error('Connection lost. Check My Submissions before retrying.'));
+    xhr.onabort = () => reject(new Error('Upload was cancelled.'));
+    xhr.onload = () => {
+      let response: unknown;
+      try { response = JSON.parse(xhr.responseText); } catch { reject(new Error('Unexpected server response. Check My Submissions before retrying.')); return; }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const error = apiError(response);
+        reject(new WorkspaceApiError(xhr.status, error?.code ?? 'INTERNAL_ERROR', error?.fieldErrors ? Object.values(error.fieldErrors).flat().join(' ') : error?.message ?? 'Submission failed.'));
+      } else if (typeof response === 'object' && response !== null && 'data' in response) {
+        resolve((response as DataEnvelope<SubmissionDto>).data);
+      } else reject(new Error('The server returned an invalid submission.'));
+    };
+    xhr.send(body);
+  });
   return requestData<SubmissionDto>("/api/v1/submissions", { method: "POST", body });
 };
 export const approveSubmission = (submissionId: string) =>
@@ -116,6 +137,8 @@ export const rejectSubmission = (submissionId: string, reason: string) =>
   requestData<SubmissionDto>(`/api/v1/admin/submissions/${encodeURIComponent(submissionId)}/reject`, { method: "POST", body: { reason } });
 export const getAdminStats = (signal?: AbortSignal) =>
   requestData<AdminStatsDto>("/api/v1/admin/stats", { signal });
+export const createCourse = (input: { universityId: string; semesterId: string; code: string; name: string; description: string }) =>
+  requestData<{ id: string }>("/api/v1/admin/courses", { method: "POST", body: input });
 
 // Separate from Material Approvals (submissions) above: this reviews
 // learner/contributor self-registrations, not content.

@@ -169,7 +169,7 @@ export default function CoursesPage() {
             <Link
               key={course.id}
               href={`/courses/${course.id}`}
-              className={cn("rounded-2xl border p-4 shadow-sm transition-colors", theme.cardBg, theme.cardBorder, "hover:" + theme.cardHoverBorder)}
+              className={cn("course-tile", theme.cardBg, theme.cardBorder, theme.cardHoverBorder)}
             >
               <p className="text-sm font-bold text-slate-900">{course.code}</p>
               <p className="text-sm text-slate-600">{course.name}</p>
@@ -177,7 +177,7 @@ export default function CoursesPage() {
                 {course.university.shortName} &middot; {course.semester.name}
               </p>
               <p className="mt-3 line-clamp-2 text-xs text-slate-500">
-                {course.description || "Open the database-ordered course roadmap."}
+                {course.description || "Explore the topics and learning materials in this course."}
               </p>
             </Link>
           ))}

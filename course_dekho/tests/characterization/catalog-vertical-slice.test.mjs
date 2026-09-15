@@ -19,7 +19,7 @@ const actor = {
   name: "Rafiul Islam",
   username: "rafiul",
   email: "rafiul@example.com",
-  role: "student",
+  role: "learner",
 };
 
 const university = {

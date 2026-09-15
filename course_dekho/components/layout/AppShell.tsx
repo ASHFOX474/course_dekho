@@ -1,11 +1,12 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { UserRole } from "@/lib/types";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { WorkspacePreferences } from "@/components/layout/WorkspacePreferences";
 import { Topbar } from "@/components/layout/Topbar";
 
 /**
@@ -24,6 +25,7 @@ export function AppShell({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Not logged in -> bounce to the login page.
   useEffect(() => {
@@ -43,11 +45,14 @@ export function AppShell({
   const roleIsAllowed = !allowedRoles || allowedRoles.includes(user.role);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-      <Sidebar />
+    <div className={`workspace workspace-${user.role}`}>
+      <WorkspacePreferences userId={user.id} />
+      <a href="#main-content" className="skip-link">Skip to content</a>
+      {menuOpen && <button aria-label="Close navigation" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" />}
+      <div id="workspace-navigation" className={`workspace-navigation ${menuOpen ? "is-open" : ""}`}><Sidebar onNavigate={() => setMenuOpen(false)} /></div>
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={title} />
-        <main className="flex-1 overflow-y-auto p-6">
+        <Topbar title={title} onMenu={() => setMenuOpen(open => !open)} menuOpen={menuOpen} />
+        <main id="main-content" className="workspace-main"><div className="workspace-content">
           {roleIsAllowed ? (
             children
           ) : (
@@ -60,7 +65,7 @@ export function AppShell({
               </p>
             </div>
           )}
-        </main>
+        </div></main>
       </div>
     </div>
   );

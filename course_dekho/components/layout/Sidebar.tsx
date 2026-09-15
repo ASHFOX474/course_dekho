@@ -1,126 +1,53 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BookOpen,
-  Bookmark,
-  CheckCircle2,
-  History,
-  Home,
-  LogOut,
-  LucideIcon,
-  Settings,
-  ShieldCheck,
-  TrendingUp,
-  Upload,
-  User,
-  UserCheck,
-  Plus,
-  Layers,
-} from "lucide-react";
+import { BookOpen, Bookmark, CheckCircle2, History, LayoutDashboard, LogOut, Settings, ShieldCheck, TrendingUp, Upload, User, Users, Layers, ArrowUpRight, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getTheme } from "@/lib/theme";
-import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/Logo";
+import { cn } from "@/lib/utils";
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-}
-
-/** Learner/Student navigation */
-const learnerNav: NavItem[] = [
-  { label: "Home", href: "/dashboard", icon: Home },
-  { label: "Courses", href: "/courses", icon: BookOpen },
-  { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
-  { label: "My Progress", href: "/progress", icon: TrendingUp },
-  { label: "Access History", href: "/access-history", icon: History },
-  { label: "Solved Questions", href: "/solved-questions", icon: CheckCircle2 },
+type Item = { label: string; href: string; icon: LucideIcon };
+const learning: Item[] = [
+  { label: "My learning", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Explore courses", href: "/courses", icon: BookOpen },
+  { label: "Saved resources", href: "/bookmarks", icon: Bookmark },
+  { label: "My progress", href: "/progress", icon: TrendingUp },
+  { label: "History", href: "/access-history", icon: History },
+  { label: "Solved questions", href: "/solved-questions", icon: CheckCircle2 },
 ];
-
-/** Teacher/Contributor navigation */
-const teacherNav: NavItem[] = [
-  { label: "Home", href: "/dashboard", icon: Home },
-  { label: "Courses", href: "/courses", icon: BookOpen },
-  { label: "Suggest Courses", href: "/contributor/courses", icon: Plus },
-  { label: "My Submissions", href: "/contributor/submissions", icon: Upload },
-  { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
+const administration: Item[] = [
+  { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Content review", href: "/admin/approvals", icon: ShieldCheck },
+  { label: "User directory", href: "/admin/user-approvals", icon: Users },
+  { label: "Course management", href: "/admin/courses", icon: Layers },
+  { label: "Published catalog", href: "/courses", icon: BookOpen },
 ];
-
-/** Admin navigation */
-const adminNav: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: Home },
-  { label: "Courses", href: "/courses", icon: BookOpen },
-  { label: "Manage Courses", href: "/admin/courses", icon: Layers },
-  { label: "Material Approvals", href: "/admin/approvals", icon: ShieldCheck },
-  { label: "User Approvals", href: "/admin/user-approvals", icon: UserCheck },
+const contribution: Item[] = [
+  { label: "Studio overview", href: "/dashboard", icon: LayoutDashboard },
+  { label: "My submissions", href: "/contributor/submissions", icon: Upload },
+  { label: "Course workspace", href: "/contributor/courses", icon: Layers },
 ];
-
-const accountNav: NavItem[] = [
-  { label: "Profile", href: "/profile", icon: User },
-  { label: "Settings", href: "/settings", icon: Settings },
-];
-
-export function Sidebar() {
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
-
   if (!user) return null;
-
-  const theme = getTheme(user.role);
-  const navItems =
-    user.role === "contributor"
-      ? teacherNav
-      : user.role === "admin"
-        ? adminNav
-        : learnerNav;
-
-  return (
-    <aside className={cn("flex h-full w-60 shrink-0 flex-col", `border-r ${theme.sidebarBg} ${theme.sidebarBorder}`)}>
-      <div className="px-5 py-5">
-        <Logo />
-      </div>
-
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-        {navItems.map((item) => (
-          <SidebarLink key={item.href} item={item} active={pathname === item.href || pathname.startsWith(item.href)} theme={theme} />
-        ))}
-      </nav>
-
-      <div className={cn("space-y-1 border-t px-3 py-3", `border-${theme.dividerColor}`)}>
-        {accountNav.map((item) => (
-          <SidebarLink key={item.href} item={item} active={pathname === item.href} theme={theme} />
-        ))}
-        <button
-          onClick={() => void logout()}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500",
-            theme.navHoverBg,
-            "hover:text-rose-600"
-          )}
-        >
-          <LogOut size={17} />
-          Logout
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function SidebarLink({ item, active, theme }: { item: NavItem; active: boolean; theme: ReturnType<typeof getTheme> }) {
-  const Icon = item.icon;
-  return (
-    <Link
-      href={item.href}
-      className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-        active ? cn(theme.navActiveBg, theme.navActiveText) : cn("text-slate-600", theme.navHoverBg, "hover:text-slate-900")
-      )}
-    >
-      <Icon size={17} />
-      {item.label}
-    </Link>
-  );
+  const admin = user.role === "admin";
+  const contributor = user.role === "contributor";
+  const items = admin ? administration : contributor ? contribution : learning;
+  function links(rows: Item[]) {
+    return rows.map(({ icon: Icon, ...item }) => {
+      const active = pathname === item.href || pathname.startsWith(item.href + "/");
+      return <Link onClick={onNavigate} key={item.href} href={item.href} aria-label={item.label} aria-current={active ? "page" : undefined} className={cn("workspace-nav-link", active && "is-active")}><Icon size={18} /><span>{item.label}</span>{active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-current" />}</Link>;
+    });
+  }
+  return <aside className="workspace-sidebar">
+    <Link href="/dashboard" onClick={onNavigate} className="block px-6 pt-7 pb-5"><Logo variant={admin || contributor ? "dark" : "light"} /></Link>
+    <div className="mx-6 mb-8 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.2em] opacity-60"><span className="h-1 w-5 bg-current" />{admin ? "Administration" : contributor ? "Contributor studio" : "Your learning space"}</div>
+    <nav aria-label="Main navigation" className="flex-1 space-y-1 overflow-y-auto px-3">
+      <p className="nav-label">{admin ? "Platform" : contributor ? "Create & contribute" : "Discover"}</p>{links(items)}
+      {contributor && <><p className="nav-label mt-7">Your learning</p>{links(learning.filter(item => item.href !== "/dashboard"))}</>}
+    </nav>
+    {contributor && <Link href="/contributor/submissions" onClick={onNavigate} className="studio-note mx-4 my-5 block rounded-xl border border-white/15 bg-white/5 p-4"><Upload size={20} /><p className="mt-3 text-sm font-semibold">Share what you know</p><p className="mt-1 text-xs leading-relaxed opacity-60">Turn your notes into someone?s next breakthrough.</p><span className="mt-3 inline-flex items-center gap-2 text-xs">Open submissions <ArrowUpRight size={14} /></span></Link>}
+    <div className="space-y-1 border-t border-current/10 p-3">{links([{ label: "Your profile", href: "/profile", icon: User }, { label: "Preferences", href: "/settings", icon: Settings }])}<button type="button" aria-label="Sign out" onClick={() => void logout()} className="workspace-nav-link w-full"><LogOut size={18} />Sign out</button></div>
+  </aside>;
 }
