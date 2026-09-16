@@ -31,11 +31,13 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
       "0006_restore_semester_scope.sql",
       "0007_learner_contributor_approval.sql",
       "0008_fix_registration_approval_check.sql",
+      "0009_password_recovery.sql",
+      "0010_support_tickets.sql",
     ]
   );
 
   for (const [index, migration] of migrations.entries()) {
-    assert.match(migration.sql, new RegExp(`^-- course-dekho:migration 000${index + 1}`, "m"));
+    assert.match(migration.sql, new RegExp(`^-- course-dekho:migration ${String(index + 1).padStart(4, '0')}`, "m"));
     assert.doesNotMatch(migration.sql, /\bDROP\s+(TABLE|SCHEMA|COLUMN|TYPE)\b/i);
     assert.doesNotMatch(migration.sql, /\bTRUNCATE\b/i);
     assert.doesNotMatch(migration.sql, /^\s*(BEGIN|COMMIT)\s*;/im);

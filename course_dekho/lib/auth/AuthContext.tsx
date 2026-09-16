@@ -55,6 +55,7 @@ interface AuthContextValue {
   login: (identifier: string, password: string) => Promise<AuthResult>;
   register: (input: RegisterInput) => Promise<RegisterResult>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -179,8 +180,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function refreshUser(): Promise<void> {
+    const response = await fetch('/api/v1/session', { cache: 'no-store', credentials: 'same-origin' });
+    if (response.ok) setUser(toAppUser(await response.json() as UserResponse));
+    else if (response.status === 401) setUser(null);
+    else throw new Error('Unable to refresh your account.');
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

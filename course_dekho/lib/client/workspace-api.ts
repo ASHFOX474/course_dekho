@@ -13,6 +13,13 @@ import type {
   UserProfileDto,
 } from "@/lib/server/api/dtos";
 
+import type { AcademicMutation, AcademicRecord } from '@/lib/academic-management';
+
+export const listAcademicRecords = (signal?: AbortSignal) =>
+  requestData<AcademicRecord[]>('/api/v1/admin/academics', { signal });
+export const mutateAcademicRecord = (input: AcademicMutation) =>
+  requestData<{ id: string }>('/api/v1/admin/academics', { method: 'POST', body: input });
+
 interface DataEnvelope<T> { data: T }
 
 export class WorkspaceApiError extends Error {
@@ -78,6 +85,14 @@ async function requestData<T>(
 
 export const getProfile = (signal?: AbortSignal) =>
   requestData<UserProfileDto>("/api/v1/me/profile", { signal });
+export const updateProfile = (input: { name: string; department?: string; yearOfStudy?: number | null; designation?: string }) =>
+  requestData<void>('/api/v1/me/profile', { method: 'PUT', body: input });
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  requestData<void>('/api/v1/me/password', { method: 'POST', body: { currentPassword, newPassword } });
+export const issueRecovery = (userId: string, currentPassword: string) =>
+  requestData<{ token: string; expiresAt: string }>(`/api/v1/admin/users/${encodeURIComponent(userId)}/recovery`, { method: 'POST', body: { currentPassword } });
+export const resetPassword = (token: string, newPassword: string) =>
+  requestData<void>('/api/v1/auth/reset-password', { method: 'POST', body: { token, newPassword } });
 export const getLearning = (signal?: AbortSignal) =>
   requestData<LearningOverviewDto>("/api/v1/me/learning", { signal });
 export const listBookmarks = (signal?: AbortSignal) =>

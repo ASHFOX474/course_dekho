@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Bookmark, CheckCircle2, History, LayoutDashboard, LogOut, Settings, ShieldCheck, TrendingUp, Upload, User, Users, Layers, ArrowUpRight, type LucideIcon } from "lucide-react";
+import { BookOpen, Bookmark, CheckCircle2, History, LayoutDashboard, LogOut, Settings, ShieldCheck, TrendingUp, Upload, User, Users, Layers, ArrowUpRight, MessageSquare, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
@@ -14,13 +14,15 @@ const learning: Item[] = [
   { label: "My progress", href: "/progress", icon: TrendingUp },
   { label: "History", href: "/access-history", icon: History },
   { label: "Solved questions", href: "/solved-questions", icon: CheckCircle2 },
+  { label: "Help & suggestions", href: "/support", icon: MessageSquare },
 ];
 const administration: Item[] = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Content review", href: "/admin/approvals", icon: ShieldCheck },
   { label: "User directory", href: "/admin/user-approvals", icon: Users },
-  { label: "Course management", href: "/admin/courses", icon: Layers },
+  { label: "Academic management", href: "/admin/courses", icon: Layers },
   { label: "Published catalog", href: "/courses", icon: BookOpen },
+  { label: "Support inbox", href: "/admin/support", icon: MessageSquare },
 ];
 const contribution: Item[] = [
   { label: "Studio overview", href: "/dashboard", icon: LayoutDashboard },

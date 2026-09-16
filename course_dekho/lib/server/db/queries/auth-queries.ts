@@ -1,4 +1,5 @@
 import type { DatabaseExecutor } from "../executor.ts";
+import { UnauthenticatedError } from '../../api/errors.ts';
 import type { AuthCredentialRow, AuthUserRow, DirectoryUserRow, InternalIdRow, PendingUserRow } from "../rows.ts";
 import type { UserRole } from "../../domain/models.ts";
 
@@ -224,12 +225,22 @@ export async function queryCreateTeacherProfile(
 export async function queryCreateSession(
   executor: DatabaseExecutor,
   input: {
+    expectedPasswordHash?: string;
     userInternalId: string;
     tokenHash: string;
     createdAt: Date;
     expiresAt: Date;
   }
 ): Promise<void> {
+  if (input.expectedPasswordHash !== undefined) {
+    // Serialize login with password updates; never issue a session for a password
+    // that was verified before a concurrent password change or recovery.
+    const locked = await executor.query<{ password_hash: string }>({
+      text: `SELECT password_hash FROM coursedekho.app_user WHERE id = $1 AND is_active AND registration_status = 'approved' FOR UPDATE`,
+      values: [input.userInternalId],
+    });
+    if (locked.rows[0]?.password_hash !== input.expectedPasswordHash) throw new UnauthenticatedError('Your credentials changed. Please sign in again.');
+  }
   await executor.query({
     name: "auth-create-session-v1",
     text: createSessionSql,

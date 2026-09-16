@@ -190,6 +190,7 @@ export class AuthService implements AuthApplicationService {
         );
       }
       await transactionRepository.createSession({
+        expectedPasswordHash: credentials.passwordHash,
         userInternalId: credentials.internalId,
         tokenHash,
         createdAt,

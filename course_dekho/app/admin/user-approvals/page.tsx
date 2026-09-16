@@ -16,6 +16,7 @@ import {
 } from "@/lib/client/workspace-api";
 import { useDatabaseData } from "@/lib/client/use-database-data";
 import { formatDate } from "@/lib/utils";
+import { RecoveryLinkForm } from '@/components/account/RecoveryLinkForm';
 
 const roleLabel: Record<string, string> = {
   learner: "Learner",
@@ -29,6 +30,7 @@ export default function AdminUserApprovalsPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("pending");
   const [search, setSearch] = useState("");
+  const [recovering, setRecovering] = useState<{ id: string; name: string } | null>(null);
 
   const {
     data: pending,
@@ -148,6 +150,7 @@ export default function AdminUserApprovalsPage() {
           </p>
         )}
 
+        {recovering && <RecoveryLinkForm key={recovering.id} userId={recovering.id} name={recovering.name} onClose={() => setRecovering(null)} />}
         {tab === "pending" ? (
           <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
             <table className="w-full text-left text-sm" aria-busy={pendingLoading}>
@@ -245,6 +248,7 @@ export default function AdminUserApprovalsPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-500">{formatDate(row.createdAt.slice(0, 10))}</td>
                     <td className="px-4 py-3 text-right">
+                      {row.isActive && row.registrationStatus === 'approved' && <button className="mr-2 rounded-lg border px-2 py-1 text-xs" onClick={() => setRecovering({ id: row.id, name: row.name })}>Recovery link</button>}
                       {row.isActive && row.id !== user?.id ? (
                         <button
                           disabled={workingId === row.id}

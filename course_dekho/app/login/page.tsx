@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { listPublicUniversities } from "@/lib/client/catalog-api";
 import type { UniversitySummaryDto } from "@/lib/server/api/dtos";
 import { Logo } from "@/components/ui/Logo";
+import Link from 'next/link';
 
 // Use learner theme for public login page
 const loginTheme = {
@@ -262,7 +263,7 @@ export default function LoginPage() {
                     </button>
                   </div>
                   <div className="mt-1 text-right">
-                    <span className={cn("text-xs font-medium", loginTheme.accentText)}>Forgot Password?</span>
+                    <Link href="/forgot-password" className={cn("text-xs font-medium underline", loginTheme.accentText)}>Forgot password?</Link>
                   </div>
                 </div>
 

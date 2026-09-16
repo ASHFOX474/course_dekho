@@ -5,9 +5,10 @@ import { SlidersHorizontal, ArrowUpRight } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { usePreferences } from "@/lib/client/preferences";
+import { PasswordForm } from '@/components/account/PasswordForm';
 export default function SettingsPage() {
   const { user } = useAuth();
-  return <AppShell title="Preferences">{user && <Preferences userId={user.id} />}</AppShell>;
+  return <AppShell title="Settings">{user && <><Preferences userId={user.id} /><section className="panel mx-auto mt-6 max-w-2xl p-6"><h2 className="mb-4 text-lg font-semibold">Change password</h2><PasswordForm /></section></>}</AppShell>;
 }
 function Preferences({ userId }: { userId: string }) {
   const { preferences, update } = usePreferences(userId);

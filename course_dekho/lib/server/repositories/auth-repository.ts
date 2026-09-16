@@ -52,6 +52,7 @@ export interface AuthRepository {
     designation?: string;
   }): Promise<void>;
   createSession(input: {
+    expectedPasswordHash?: string;
     userInternalId: string;
     tokenHash: string;
     createdAt: Date;
