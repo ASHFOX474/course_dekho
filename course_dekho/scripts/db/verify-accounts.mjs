@@ -33,20 +33,20 @@ try {
   }
   const session = await auth.login({ identifier: users.learner.username, password });
   const unused = await account.issueRecovery(users.admin, users.learner.id, { currentPassword: password });
-  await assert.rejects(account.changePassword(users.learner, { currentPassword: 'incorrect', newPassword: 'Verification new password!' }));
-  await account.changePassword(users.learner, { currentPassword: password, newPassword: 'Verification new password!' });
+  await assert.rejects(account.changePassword(users.learner, { currentPassword: 'incorrect', newPassword: 'NewPass8' }));
+  await account.changePassword(users.learner, { currentPassword: password, newPassword: 'NewPass8' });
   await assert.rejects(auth.getSessionUser(session.sessionToken), { status: 401 });
   await assert.rejects(auth.login({ identifier: users.learner.username, password }), { status: 401 });
   await assert.rejects(account.resetPassword({ token: unused.token, newPassword: 'Another new password!' }));
-  await auth.login({ identifier: users.learner.username, password: 'Verification new password!' });
+  await auth.login({ identifier: users.learner.username, password: 'NewPass8' });
   const first = await account.issueRecovery(users.admin, users.learner.id, { currentPassword: password });
   const second = await account.issueRecovery(users.admin, users.learner.id, { currentPassword: password });
-  await assert.rejects(account.resetPassword({ token: first.token, newPassword: 'Recovered password!' }));
+  await assert.rejects(account.resetPassword({ token: first.token, newPassword: 'ResetPw8' }));
   const stored = (await client.query('SELECT token_hash FROM coursedekho.password_reset_token WHERE token_hash=$1', [hashSessionToken(second.token)])).rows[0];
   assert.notEqual(stored.token_hash, second.token);
-  await account.resetPassword({ token: second.token, newPassword: 'Recovered password!' });
+  await account.resetPassword({ token: second.token, newPassword: 'ResetPw8' });
   await assert.rejects(account.resetPassword({ token: second.token, newPassword: 'Reused password!' }));
-  await auth.login({ identifier: users.learner.username, password: 'Recovered password!' });
+  await auth.login({ identifier: users.learner.username, password: 'ResetPw8' });
   const expired = await account.issueRecovery(users.admin, users.learner.id, { currentPassword: password });
   await client.query("UPDATE coursedekho.password_reset_token SET created_at=now()-interval '31 minutes', expires_at=now()-interval '1 minute' WHERE token_hash=$1", [hashSessionToken(expired.token)]);
   await assert.rejects(account.resetPassword({ token: expired.token, newPassword: 'Expired password!' }));

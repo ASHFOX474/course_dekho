@@ -26,9 +26,9 @@ export function PasswordForm({ token }: { token?: string }) {
     {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}
     <fieldset disabled={busy} className="space-y-4">
       {token === undefined && <label className="block text-sm font-medium">Current password<input name="currentPassword" type="password" autoComplete="current-password" required maxLength={128} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>}
-      <label className="block text-sm font-medium">New password<input name="newPassword" type="password" autoComplete="new-password" required minLength={12} maxLength={128} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
-      <label className="block text-sm font-medium">Confirm new password<input name="confirmPassword" type="password" autoComplete="new-password" required minLength={12} maxLength={128} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
-      <p className="text-xs text-slate-500">Use 12–128 characters. Saving signs you out on all devices.</p>
+      <label className="block text-sm font-medium">New password<input name="newPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
+      <label className="block text-sm font-medium">Confirm new password<input name="confirmPassword" type="password" autoComplete="new-password" required minLength={8} maxLength={128} className="mt-1 w-full rounded-lg border px-3 py-2" /></label>
+      <p className="text-xs text-slate-500">Use 8–128 characters. Saving signs you out on all devices.</p>
       <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? 'Saving...' : 'Update password'}</button>
     </fieldset>
     {token === undefined && <Link href="/forgot-password" className="block text-sm text-indigo-700 underline">Forgot your password?</Link>}

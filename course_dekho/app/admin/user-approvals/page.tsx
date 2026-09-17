@@ -124,7 +124,7 @@ export default function AdminUserApprovalsPage() {
           </p>
         </div>
 
-        <input aria-label="Search users" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, username or email?" className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm" />
+        <input aria-label="Search users" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, username or email..." className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm" />
         <div className="flex flex-wrap gap-2 border-b">
           <button
             onClick={() => setTab("pending")}

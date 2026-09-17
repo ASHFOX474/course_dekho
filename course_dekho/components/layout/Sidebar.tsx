@@ -49,7 +49,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <p className="nav-label">{admin ? "Platform" : contributor ? "Create & contribute" : "Discover"}</p>{links(items)}
       {contributor && <><p className="nav-label mt-7">Your learning</p>{links(learning.filter(item => item.href !== "/dashboard"))}</>}
     </nav>
-    {contributor && <Link href="/contributor/submissions" onClick={onNavigate} className="studio-note mx-4 my-5 block rounded-xl border border-white/15 bg-white/5 p-4"><Upload size={20} /><p className="mt-3 text-sm font-semibold">Share what you know</p><p className="mt-1 text-xs leading-relaxed opacity-60">Turn your notes into someone?s next breakthrough.</p><span className="mt-3 inline-flex items-center gap-2 text-xs">Open submissions <ArrowUpRight size={14} /></span></Link>}
+    {contributor && <Link href="/contributor/submissions" onClick={onNavigate} className="studio-note mx-4 my-5 block rounded-xl border border-white/15 bg-white/5 p-4"><Upload size={20} /><p className="mt-3 text-sm font-semibold">Share what you know</p><p className="mt-1 text-xs leading-relaxed opacity-60">Turn your notes into someone&apos;s next breakthrough.</p><span className="mt-3 inline-flex items-center gap-2 text-xs">Open submissions <ArrowUpRight size={14} /></span></Link>}
     <div className="space-y-1 border-t border-current/10 p-3">{links([{ label: "Your profile", href: "/profile", icon: User }, { label: "Preferences", href: "/settings", icon: Settings }])}<button type="button" aria-label="Sign out" onClick={() => void logout()} className="workspace-nav-link w-full"><LogOut size={18} />Sign out</button></div>
   </aside>;
 }

@@ -362,7 +362,9 @@ export default function LoginPage() {
                       type={showPassword ? "text" : "password"}
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
-                      placeholder="At least 12 characters"
+                      placeholder="At least 8 characters"
+                      minLength={8}
+                      maxLength={128}
                       className={cn("w-full rounded-lg border px-3.5 py-2.5 pr-10 text-sm focus:outline-none", loginTheme.inputBorder, loginTheme.inputFocusBorder, loginTheme.inputFocusRing)}
                     />
                     <button

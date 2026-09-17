@@ -7,6 +7,8 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    // Private uploads and headless-browser artifacts are not application source.
+    ".data/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

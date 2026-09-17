@@ -42,7 +42,7 @@ try {
   socket.addEventListener('message', event => {
     const message = JSON.parse(event.data);
     if (message.id) { const entry = pending.get(message.id); pending.delete(message.id); if (message.error) entry?.reject(new Error(JSON.stringify(message.error))); else entry?.resolve(message.result); return; }
-    if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.text);
+    if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails.exception?.description ?? message.params.exceptionDetails.text);
     if (message.method === 'Fetch.requestPaused') {
       const { requestId, request } = message.params;
       const path = new URL(request.url).pathname;
@@ -58,7 +58,7 @@ try {
       }
       else if (path === '/api/v1/me/password') { passwordChanges++; assert.equal(JSON.parse(request.postData).currentPassword, 'current test password'); data = null; }
       else if (path === '/api/v1/auth/reset-password') { passwordResets++; assert.equal(JSON.parse(request.postData).token, 'r'.repeat(43)); data = null; }
-      else if (path.endsWith('/recovery')) data = { token: 'r'.repeat(43), expiresAt: '2026-09-17T00:30:00Z' };
+      else if (path.startsWith('/api/v1/admin/users/') && path.endsWith('/recovery')) data = { token: 'r'.repeat(43), expiresAt: '2026-09-17T00:30:00Z' };
       else if (path === '/api/v1/admin/users/all') data = [{ id: id(111), name: 'Tanvir Hasan', email: 'tanvir@example.test', username: 'tanvir', role: 'learner', universityName: university.name, registrationStatus: 'approved', isActive: true, createdAt: '2026-09-14T10:00:00Z' }];
       else if (path === '/api/v1/support' || path === '/api/v1/support/recovery') {
         if (request.method === 'POST') {
@@ -107,13 +107,17 @@ try {
       else if (path === '/api/v1/me/learning') data = { courses: courses.map((course, i) => ({ ...course, courseId: course.id, enrollmentId: id(1001 + i), progressPercent: [65, 35, 10][i], status: 'active' })), topics: [{ id: id(1501), topicId: id(501), courseId: id(401), courseName: courses[0].name, courseCode: courses[0].code, topicName: 'Graph traversal', progressPercent: 65, completed: false }] };
       else if (path === '/api/v1/me/access-history') data = submissions.slice(0, 3).map(row => ({ id: row.id, resourceId: row.id, resourceTitle: row.title, resourceType: row.resourceType, accessedAt: row.submittedAt }));
       else if (path === '/api/v1/admin/courses' && request.method === 'POST') { const body = JSON.parse(request.postData); assert.equal(body.code, 'CSE-999'); created = true; data = { id: id(999) }; }
-      void send('Fetch.fulfillRequest', { requestId, responseCode: request.method === 'POST' ? 201 : 200, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify({ data })).toString('base64') });
+      void send('Fetch.fulfillRequest', { requestId, responseCode: request.method === 'POST' ? 201 : 200, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify({ data })).toString('base64') }).catch(error => {
+        // Navigation can cancel a paused request before its fixture response arrives.
+        // Keep all other protocol failures visible to the final assertion.
+        if (!error.message.includes('Invalid InterceptionId')) errors.push(error.message);
+      });
     }
   });
   await send('Page.enable'); await send('Runtime.enable');
   await send('Fetch.enable', { patterns: [{ urlPattern: `${origin}/api/v1/*` }] });
   async function evaluate(expression) { return (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value; }
-  async function waitFor(expression) { for (let i = 0; i < 150; i++) { if (await evaluate(`Boolean(${expression})`)) return; await delay(200); } throw new Error(`Timed out: ${expression}`); }
+  async function waitFor(expression) { for (let i = 0; i < 150; i++) { if (await evaluate(`Boolean(${expression})`)) return; await delay(200); } throw new Error(`Timed out: ${expression}. Page: ${await evaluate('document.body.innerText.slice(-1600)')}`); }
   async function navigate(path) { await send('Page.navigate', { url: origin + path }); await waitFor(`document.querySelector('.workspace-${role}') && !document.body.innerText.includes('Loading CourseDekho')`); await delay(1200); }
   async function screenshot(name) { const result = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); await writeFile(resolve(output, name + '.png'), Buffer.from(result.data, 'base64')); }
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1040, deviceScaleFactor: 1, mobile: false });
@@ -224,6 +228,7 @@ try {
   assert.equal(await evaluate(`document.querySelectorAll('a[href="/forgot-password"]').length`), 1);
   await evaluate(`document.querySelector('a[href="/forgot-password"]').click()`);
   await waitFor(`document.querySelector('textarea[name=message]')`);
+  await delay(1200);
   await evaluate(`document.querySelector('[name=name]').value='Guest'; document.querySelector('[name=email]').value='guest@example.test'; document.querySelector('[name=identifier]').value='guest_username'; document.querySelector('[name=message]').value='I cannot sign in.'; document.querySelector('form').requestSubmit()`);
   await waitFor(`document.querySelector('input[readonly]')`);
   const trackingUrl = await evaluate(`document.querySelector('input[readonly]').value`);

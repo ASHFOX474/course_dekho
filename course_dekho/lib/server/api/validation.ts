@@ -283,8 +283,8 @@ export function validateRegisterRequest(value: unknown): RegisterRequestDto {
   const password = value.password;
   if (typeof password !== "string") {
     addError(errors, "password", "password is required.");
-  } else if (password.length < 12 || password.length > 128) {
-    addError(errors, "password", "password must be between 12 and 128 characters.");
+  } else if (password.length < 8 || password.length > 128) {
+    addError(errors, "password", "password must be between 8 and 128 characters.");
   }
 
   const role = value.role;

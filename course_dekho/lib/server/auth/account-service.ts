@@ -17,7 +17,7 @@ export function accountText(value: unknown, field: string, max: number, required
   return value.trim();
 }
 export function newPassword(value: unknown): string {
-  if (typeof value !== 'string' || value.length < 12 || value.length > 128) throw new ValidationError('Check your new password.', { newPassword: ['Use between 12 and 128 characters.'] });
+  if (typeof value !== 'string' || value.length < 8 || value.length > 128) throw new ValidationError('Check your new password.', { newPassword: ['Use between 8 and 128 characters.'] });
   return value;
 }
 async function lockUser(db: DatabaseExecutor, id: string) {

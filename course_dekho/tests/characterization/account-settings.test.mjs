@@ -4,6 +4,21 @@ import { AccountService, accountForm, newPassword } from '../../lib/server/auth/
 import { createAccountHandler } from '../../lib/server/auth/account-http-handlers.ts';
 import { queryCreateSession } from '../../lib/server/db/queries/auth-queries.ts';
 import { ScryptPasswordHasher } from '../../lib/server/auth/password.ts';
+import { validateRegisterRequest } from '../../lib/server/api/validation.ts';
+
+test('registration, password changes and recovery accept 8–128 characters and reject outside bounds', () => {
+  const registration = { name: 'Test learner', email: 'test@example.com', username: 'test_learner', role: 'learner', universityId: '00000000-0000-4000-8000-000000000201' };
+  for (const length of [8, 9, 11, 12, 128]) {
+    const password = 'a'.repeat(length);
+    assert.equal(newPassword(password), password);
+    assert.equal(validateRegisterRequest({ ...registration, password }).password, password);
+  }
+  for (const length of [0, 6, 7, 129]) {
+    const password = 'a'.repeat(length);
+    assert.throws(() => newPassword(password), { status: 400 });
+    assert.throws(() => validateRegisterRequest({ ...registration, password }), { status: 400 });
+  }
+});
 
 const id = '00000000-0000-4000-8000-000000000101';
 const actor = { id, role: 'learner' };
