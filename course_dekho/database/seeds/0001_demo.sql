@@ -32,7 +32,7 @@ VALUES
     ),
     (
         '00000000-0000-4000-8000-000000000103',
-        'Nusrat Jahan',
+        'Bijoy',
         'nusrat@admin.coursedekho.local',
         'nusrat',
         'scrypt$32768$8$1$AKLjKw1ez-SAo4TDPgxMnA$TLBWbbtQobShHK0IZ9GSEg8S4dpF_97i7J-gYX40AE7KUR4KVDpjIbyCuWynBaXJC2nrNG-B7j0E7NoapMTNhQ',
@@ -174,9 +174,9 @@ SELECT
     university.id,
     semester.id,
     'data-structures-and-algorithms',
-    'CSE-211',
-    'Data Structures and Algorithms',
-    'Core data structures, algorithms, and problem-solving techniques.'
+    'DSA-101',
+    'Data Structures & Algorithms',
+    'Core practice on arrays, strings, linked lists, stacks, trees, graphs, and dynamic programming.'
 FROM coursedekho.university AS university
 JOIN coursedekho.semester AS semester ON semester.university_id = university.id
 WHERE university.public_id = '00000000-0000-4000-8000-000000000201'
@@ -200,11 +200,11 @@ FROM coursedekho.course AS course
 CROSS JOIN (
     VALUES
         ('00000000-0000-4000-8000-000000000501'::UUID, 'array', 'Array', 'Contiguous collections and common operations.', 1),
-        ('00000000-0000-4000-8000-000000000502'::UUID, 'linked-list', 'Linked List', 'Singly, doubly, and circular linked lists.', 2),
-        ('00000000-0000-4000-8000-000000000503'::UUID, 'stack-and-queue', 'Stack and Queue', 'LIFO and FIFO structures and applications.', 3),
-        ('00000000-0000-4000-8000-000000000504'::UUID, 'tree', 'Tree', 'Tree traversals, search trees, and heaps.', 4),
-        ('00000000-0000-4000-8000-000000000505'::UUID, 'graph', 'Graph', 'Graph representations, traversal, and shortest paths.', 5),
-        ('00000000-0000-4000-8000-000000000506'::UUID, 'greedy', 'Greedy Algorithms', 'Locally optimal choices and correctness.', 6),
+        ('00000000-0000-4000-8000-000000000502'::UUID, 'string', 'String', 'Character sequences, pattern matching, and text processing.', 2),
+        ('00000000-0000-4000-8000-000000000503'::UUID, 'linked-list', 'Linked List', 'Node-based data structures and traversal techniques.', 3),
+        ('00000000-0000-4000-8000-000000000504'::UUID, 'stack-and-queue', 'Stack and Queue', 'LIFO and FIFO structures and applications.', 4),
+        ('00000000-0000-4000-8000-000000000505'::UUID, 'tree', 'Tree', 'Tree traversals, search trees, and heaps.', 5),
+        ('00000000-0000-4000-8000-000000000506'::UUID, 'graph', 'Graph', 'Graph representations, traversal, and shortest paths.', 6),
         ('00000000-0000-4000-8000-000000000507'::UUID, 'dynamic-programming', 'Dynamic Programming', 'Overlapping subproblems and optimal substructure.', 7)
 ) AS seed(public_id, slug, name, description, sequence_order)
 WHERE course.public_id = '00000000-0000-4000-8000-000000000401'

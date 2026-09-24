@@ -19,7 +19,7 @@ export function Attachment({ id, kind, preview = false }: { id: string; kind: 'r
   return <div className="space-y-3">
     <div className="flex flex-wrap items-center gap-3 text-sm text-violet-700">
       {asset.fileUrl && <><a href={asset.fileUrl} target="_blank" rel="noopener noreferrer" className="break-all underline">{asset.fileName || 'Open file'}</a><a href={`${asset.fileUrl}?download=1`} className="inline-flex items-center gap-1 font-semibold"><Download size={15} />Download</a></>}
-      {asset.externalUrl && <a href={asset.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold"><ExternalLink size={15} />Open link</a>}
+      {asset.externalUrl && <a href={asset.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-semibold"><ExternalLink size={15} />{new URL(asset.externalUrl).hostname === 'drive.google.com' ? 'Open in Google Drive' : 'Open resource link'}</a>}
     </div>
     {preview && asset.fileUrl && asset.mimeType === 'application/pdf' && <iframe title={asset.fileName || 'PDF preview'} src={asset.fileUrl} className="h-[600px] w-full rounded-lg border" />}
     {preview && asset.fileUrl && ['image/png','image/jpeg','image/gif','image/webp'].includes(asset.mimeType || '') &&

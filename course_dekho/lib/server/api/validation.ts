@@ -1,4 +1,5 @@
 import { ValidationError } from "./errors.ts";
+import type { ResourceEdit } from "../../resource-edit.ts";
 import { resourceTypes } from "../domain/models.ts";
 import type {
   CreateBookmarkRequestDto,
@@ -146,7 +147,15 @@ export function validateCreateSubmissionRequest(value: unknown): CreateSubmissio
   }
 
   const title = readText(value.title, "title", 200, errors);
-  const description = readText(value.description, "description", 5000, errors);
+  let description = "";
+  if (value.description !== undefined) {
+    if (typeof value.description !== "string") {
+      addError(errors, "description", "description must be text.");
+    } else {
+      description = value.description.trim();
+      if (description.length > 5000) addError(errors, "description", "description must be at most 5000 characters.");
+    }
+  }
   const courseId = readPublicId(value.courseId, "courseId", errors);
   const topicId = readPublicId(value.topicId, "topicId", errors);
   let externalUrl: string | undefined;
@@ -170,6 +179,15 @@ export function validateCreateSubmissionRequest(value: unknown): CreateSubmissio
     topicId,
     ...(externalUrl ? { externalUrl } : {}),
   };
+}
+
+export function validateResourceEdit(value: unknown): ResourceEdit {
+  if (!isObject(value)) throw new ValidationError('Request body must be a JSON object.', { body: ['Expected an object.'] });
+  const errors: FieldErrors = {};
+  rejectUnknownFields(value, ['title', 'courseId', 'topicId', 'resourceType'], errors);
+  throwIfInvalid(errors);
+  const validated = validateCreateSubmissionRequest(value);
+  return { title: validated.title, courseId: validated.courseId, topicId: validated.topicId, resourceType: validated.resourceType };
 }
 
 // Same shape as rejecting a submission: a required, non-blank reason.

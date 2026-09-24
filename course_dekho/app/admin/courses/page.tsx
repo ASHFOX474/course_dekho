@@ -4,9 +4,11 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react';
 import { AppShell } from '@/components/layout/AppShell';
+import { ResourceLinkForm } from '@/components/ui/ResourceLinkForm';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useDatabaseData } from '@/lib/client/use-database-data';
 import { listAcademicRecords, mutateAcademicRecord } from '@/lib/client/workspace-api';
+import { filterAcademicRecords } from '@/lib/academic-management';
 import type { AcademicKind, AcademicMutation, AcademicRecord } from '@/lib/academic-management';
 
 const labels: Record<AcademicKind, string> = { university: 'Universities', semester: 'Semesters', course: 'Courses', topic: 'Topics' };
@@ -27,18 +29,18 @@ export default function AdminCoursesPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState('');
+  const [resourceTopic, setResourceTopic] = useState<AcademicRecord | null>(null);
   const records = catalog.data;
   const universities = records.filter(row => row.kind === 'university');
-  const semesters = records.filter(row => row.kind === 'semester' && row.parentId === universityId);
-  const courses = records.filter(row => row.kind === 'course' && row.parentId === semesterId);
+  const semesters = filterAcademicRecords(records, 'semester', { universityId });
+  const courses = filterAcademicRecords(records, 'course', { universityId, semesterId });
   const parentId = kind === 'semester' ? universityId : kind === 'course' ? semesterId : kind === 'topic' ? courseId : null;
   const parent = records.find(row => row.id === parentId);
   const canCreate = kind === 'university' || !!(parent?.isActive && parent.parentActive);
-  const siblings = records.filter(row => row.kind === kind && (kind === 'university' || row.parentId === parentId));
-  const orderedActive = siblings.filter(row => row.isActive).sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0));
+  const siblings = filterAcademicRecords(records, kind, kind === 'university' ? {} : { universityId, ...(kind !== 'semester' ? { semesterId } : {}), ...(kind === 'topic' ? { courseId } : {}) });
   const visible = siblings.filter(row => (showArchived || row.isActive) && `${row.name} ${row.code} ${row.shortName}`.toLowerCase().includes(search.toLowerCase()));
 
-  function resetFeedback() { setEditor(null); setArchiveTarget(null); setError(null); setSuccess(''); }
+  function resetFeedback() { setEditor(null); setArchiveTarget(null); setResourceTopic(null); setError(null); setSuccess(''); }
 
   async function save(input: AcademicMutation, message: string) {
     setBusy(true); setError(null); setSuccess('');
@@ -68,7 +70,7 @@ export default function AdminCoursesPage() {
   function selector(label: string, value: string, options: AcademicRecord[], onChange: (id: string) => void, disabled = false) {
     return <label className="min-w-0 flex-1 text-sm font-medium text-slate-700">{label}
       <select className={inputClass} value={value} disabled={busy || disabled} onChange={event => { onChange(event.target.value); resetFeedback(); }}>
-        <option value="">Select {label.toLowerCase()}</option>
+        <option value="">All {label === 'University' ? 'universities' : label === 'Semester' ? 'semesters' : 'courses'}</option>
         {options.map(row => <option key={row.id} value={row.id}>{row.code ? `${row.code} - ` : ''}{row.name}{!row.isActive ? ' (archived)' : !row.parentActive ? ' (parent archived)' : ''}</option>)}
       </select>
     </label>;
@@ -82,12 +84,14 @@ export default function AdminCoursesPage() {
       </nav>
       {kind !== 'university' && <section className="panel flex flex-col gap-4 p-5 md:flex-row" aria-label="Parent selection">
         {selector('University', universityId, universities, id => { setUniversityId(id); setSemesterId(''); setCourseId(''); })}
-        {(kind === 'course' || kind === 'topic') && selector('Semester', semesterId, semesters, id => { setSemesterId(id); setCourseId(''); }, !universityId)}
-        {kind === 'topic' && selector('Course', courseId, courses, setCourseId, !semesterId)}
+        {(kind === 'course' || kind === 'topic') && selector('Semester', semesterId, semesters, id => { setSemesterId(id); setCourseId(''); })}
+        {kind === 'topic' && selector('Course', courseId, courses, setCourseId)}
       </section>}
       {(error || catalog.error) && <div role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error ?? catalog.error}{catalog.error && <button className="ml-3 underline" onClick={catalog.refresh}>Retry loading</button>}</div>}
       {success && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{success}</p>}
+      {resourceTopic?.parentId && <ResourceLinkForm key={resourceTopic.id} courseId={resourceTopic.parentId} topicId={resourceTopic.id} topicName={resourceTopic.name} onClose={() => setResourceTopic(null)} onSaved={() => { setResourceTopic(null); setSuccess('Resource published. Learners can open the link from this topic.'); }} />}
       {parent && (!parent.isActive || !parent.parentActive) && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">This parent structure is archived. Restore it in its management section before creating, editing, restoring, or reordering items here.</p>}
+      {!canCreate && !catalog.isLoading && <p className="text-sm text-slate-500">To create a {kind}, select its active parent above. You can browse and edit existing items without filters.</p>}
       {editor && <section className="panel p-5" aria-label={`${editor.record ? 'Edit' : 'New'} ${kind}`}>
         <h3 className="mb-4 text-lg font-semibold">{editor.record ? 'Edit' : 'New'} {kind}</h3>
         <form key={`${kind}:${editor.record?.id ?? 'new'}`} onSubmit={submit} className="space-y-4">
@@ -95,7 +99,7 @@ export default function AdminCoursesPage() {
             <label className="text-sm font-medium">Name<input autoFocus className={inputClass} name="name" required maxLength={200} defaultValue={editor.record?.name} /></label>
             {kind === 'university' && <label className="text-sm font-medium">Short name<input className={inputClass} name="shortName" required maxLength={50} defaultValue={editor.record?.shortName} placeholder="e.g. BUET" /></label>}
             {kind === 'course' && <label className="text-sm font-medium">Course code<input className={inputClass} name="code" required maxLength={20} defaultValue={editor.record?.code} placeholder="e.g. CSE-201" /></label>}
-            {['course', 'topic'].includes(kind) && <label className="text-sm font-medium sm:col-span-2">Description<textarea className={inputClass} name="description" rows={3} maxLength={1000} defaultValue={editor.record?.description} /></label>}
+            {['course', 'topic'].includes(kind) && <label className="text-sm font-medium sm:col-span-2">Description (optional)<textarea className={inputClass} name="description" rows={3} maxLength={1000} defaultValue={editor.record?.description} /></label>}
           </fieldset>
           {!editor.record && ['semester', 'topic'].includes(kind) && <p className="text-xs text-slate-500">New items are added at the end. Use the arrow buttons to change their order.</p>}
           <div className="flex gap-2"><button disabled={busy} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40" type="submit">{busy ? 'Saving...' : 'Save'}</button><button disabled={busy} className={buttonClass} type="button" onClick={() => setEditor(null)}>Cancel</button></div>
@@ -115,14 +119,16 @@ export default function AdminCoursesPage() {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showArchived} onChange={event => setShowArchived(event.target.checked)} />Show archived</label>
           </div>
         </div>
-        {catalog.isLoading ? <p role="status" className="p-8 text-center text-sm text-slate-500">Loading academic structure...</p> : kind !== 'university' && !parentId ? <p className="p-8 text-center text-sm text-slate-500">Select the parent structure above to manage {labels[kind].toLowerCase()}.</p> : !visible.length ? <p className="p-8 text-center text-sm text-slate-500">{search ? 'No matching items.' : `No ${labels[kind].toLowerCase()} here yet. Create an item or show archived items.`}</p> : <ul className="divide-y divide-slate-100">
+        {catalog.isLoading ? <p role="status" className="p-8 text-center text-sm text-slate-500">Loading academic structure...</p> : !visible.length ? <p className="p-8 text-center text-sm text-slate-500">{search ? 'No matching items.' : `No ${labels[kind].toLowerCase()} here yet. Create an item or show archived items.`}</p> : <ul className="divide-y divide-slate-100">
           {visible.map(row => {
+            const orderedActive = records.filter(item => item.kind === row.kind && item.parentId === row.parentId && item.isActive).sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0));
             const position = orderedActive.findIndex(item => item.id === row.id);
             const blocked = busy || !!catalog.error || !!editor || !!archiveTarget;
             return <li key={row.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{row.sequenceOrder !== null ? `${row.sequenceOrder}. ` : ''}{row.code || row.shortName ? `${row.code || row.shortName} - ` : ''}{row.name}</span>{!row.isActive && <span className="rounded bg-slate-100 px-2 py-1 text-xs">Archived</span>}{row.isActive && !row.parentActive && <span className="rounded bg-amber-50 px-2 py-1 text-xs">Parent archived</span>}</div>{row.description && <p className="mt-1 max-w-xl whitespace-pre-wrap break-words text-sm text-slate-500">{row.description}</p>}</div>
+              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{row.sequenceOrder !== null ? `${row.sequenceOrder}. ` : ''}{row.code || row.shortName ? `${row.code || row.shortName} - ` : ''}{row.name}</span>{!row.isActive && <span className="rounded bg-slate-100 px-2 py-1 text-xs">Archived</span>}{row.isActive && !row.parentActive && <span className="rounded bg-amber-50 px-2 py-1 text-xs">Parent archived</span>}</div>{row.parentId && <p className="mt-1 text-xs text-slate-500">{(() => { const names: string[] = []; let item = records.find(record => record.id === row.parentId); while (item) { names.unshift(item.code || item.shortName || item.name); item = records.find(record => record.id === item?.parentId); } return names.join(' / '); })()}</p>}{row.description && <p className="mt-1 max-w-xl whitespace-pre-wrap break-words text-sm text-slate-500">{row.description}</p>}</div>
               <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {row.kind !== 'topic' && <button disabled={busy} className={buttonClass} onClick={() => { resetFeedback(); setSearch(''); if (row.kind === 'university') { setUniversityId(row.id); setSemesterId(''); setCourseId(''); setKind('semester'); } else if (row.kind === 'semester') { setSemesterId(row.id); setCourseId(''); setKind('course'); } else { setCourseId(row.id); setKind('topic'); } }}>Manage {row.kind === 'university' ? 'semesters' : row.kind === 'semester' ? 'courses' : 'topics'}</button>}
+                {row.kind === 'topic' && row.isActive && row.parentActive && <><button disabled={blocked} className={buttonClass} onClick={() => { resetFeedback(); setResourceTopic(row); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Add resource link</button><Link className={buttonClass} href={`/courses/${row.parentId}/topics/${row.id}`}>View resources</Link></>}
+                {row.kind !== 'topic' && <button disabled={busy} className={buttonClass} onClick={() => { resetFeedback(); setSearch(''); if (row.kind === 'university') { setUniversityId(row.id); setSemesterId(''); setCourseId(''); setKind('semester'); } else if (row.kind === 'semester') { setUniversityId(row.parentId ?? ''); setSemesterId(row.id); setCourseId(''); setKind('course'); } else { setUniversityId(records.find(item => item.id === row.parentId)?.parentId ?? ''); setSemesterId(row.parentId ?? ''); setCourseId(row.id); setKind('topic'); } }}>Manage {row.kind === 'university' ? 'semesters' : row.kind === 'semester' ? 'courses' : 'topics'}</button>}
                 {row.kind === 'course' && row.isActive && row.parentActive && <Link className={buttonClass} href={`/courses/${row.id}`}>View course</Link>}
                 {(kind === 'topic' || kind === 'semester') && row.isActive && <>
                   <button disabled={blocked || !row.parentActive || position <= 0} className={buttonClass} aria-label={`Move ${row.name} up`} onClick={() => void save({ action: 'move', kind, id: row.id, direction: 'up' }, 'Order updated.')}><ArrowUp size={15} /></button>

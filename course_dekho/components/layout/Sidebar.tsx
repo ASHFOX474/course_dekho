@@ -5,6 +5,7 @@ import { BookOpen, Bookmark, CheckCircle2, History, LayoutDashboard, LogOut, Set
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
+import { courseSections, type CourseNavigation } from "@/lib/course-sections";
 
 type Item = { label: string; href: string; icon: LucideIcon };
 const learning: Item[] = [
@@ -29,7 +30,7 @@ const contribution: Item[] = [
   { label: "My submissions", href: "/contributor/submissions", icon: Upload },
   { label: "Course workspace", href: "/contributor/courses", icon: Layers },
 ];
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+export function Sidebar({ onNavigate, courseNavigation }: { onNavigate?: () => void; courseNavigation?: CourseNavigation }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   if (!user) return null;
@@ -46,6 +47,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <Link href="/dashboard" onClick={onNavigate} className="block px-6 pt-7 pb-5"><Logo variant={admin || contributor ? "dark" : "light"} /></Link>
     <div className="mx-6 mb-8 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.2em] opacity-60"><span className="h-1 w-5 bg-current" />{admin ? "Administration" : contributor ? "Contributor studio" : "Your learning space"}</div>
     <nav aria-label="Main navigation" className="flex-1 space-y-1 overflow-y-auto px-3">
+      {courseNavigation && <div className="mb-6">
+        <p className="nav-label">This course</p>
+        {courseSections.map(section => <button key={section.id} type="button"
+          onClick={() => { onNavigate?.(); courseNavigation.onSelect(section.id); }}
+          aria-controls={`course-${section.id}`} aria-current={courseNavigation.activeId === section.id ? 'location' : undefined}
+          className={cn('workspace-nav-link w-full text-left', courseNavigation.activeId === section.id && 'is-active')}>
+          {section.id === 'roadmap' ? <TrendingUp size={18} /> : section.id === 'slides' ? <Layers size={18} /> : <BookOpen size={18} />}
+          <span>{section.label}</span>
+        </button>)}
+      </div>}
       <p className="nav-label">{admin ? "Platform" : contributor ? "Create & contribute" : "Discover"}</p>{links(items)}
       {contributor && <><p className="nav-label mt-7">Your learning</p>{links(learning.filter(item => item.href !== "/dashboard"))}</>}
     </nav>

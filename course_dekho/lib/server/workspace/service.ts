@@ -1,7 +1,8 @@
 import type { StoredFile } from "../storage/files.ts";
+import type { ResourceEdit } from '../../resource-edit.ts';
 import type { Pool } from "pg";
 
-import { ConflictError, InvalidTransitionError, NotFoundError } from "../api/errors.ts";
+import { ConflictError, InvalidTransitionError, NotFoundError, ValidationError } from "../api/errors.ts";
 import { requireRole } from "../auth/authorization.ts";
 import { withTransaction } from "../db/transaction.ts";
 import type {
@@ -137,6 +138,38 @@ export class WorkspaceService {
     const submission = await this.repository().createSubmission({ contributorId: actor.id, ...input });
     if (!submission) throw new NotFoundError("Active course/topic combination not found.");
     return submission;
+  }
+
+  async removeResource(actor: AuthenticatedUser, resourceId: string): Promise<void> {
+    requireRole(actor, ["admin"]);
+    if (!(await this.repository().removeResource(resourceId))) throw new NotFoundError("Resource not found.");
+  }
+
+  async editResource(actor: AuthenticatedUser, resourceId: string, input: ResourceEdit): Promise<void> {
+    requireRole(actor, ['admin']);
+    await withTransaction(this.pool, async client => {
+      const repository = this.repositoryFactory(client);
+      const submissionId = await repository.createResourceEdit(resourceId, actor.id, input);
+      if (!submissionId) throw new NotFoundError('Resource or active destination not found.');
+      const approved = await repository.approveSubmission({ submissionId, reviewerId: actor.id, reviewedAt: this.now() });
+      if (!approved) throw new InvalidTransitionError('Unable to save the resource revision.');
+    });
+  }
+
+  async publishResourceLink(actor: AuthenticatedUser, input: {
+    resourceType: ResourceType; title: string; description: string;
+    courseId: string; topicId: string; externalUrl?: string;
+  }) {
+    requireRole(actor, ["admin"]);
+    if (!input.externalUrl) throw new ValidationError("A resource link is required.", { externalUrl: ["Paste the resource link."] });
+    return withTransaction(this.pool, async client => {
+      const repository = this.repositoryFactory(client);
+      const submission = await repository.createSubmission({ contributorId: actor.id, ...input });
+      if (!submission) throw new NotFoundError("Active course/topic combination not found.");
+      const published = await repository.approveSubmission({ submissionId: submission.id, reviewerId: actor.id, reviewedAt: this.now() });
+      if (!published) throw new InvalidTransitionError("Unable to publish the resource link.");
+      return published;
+    });
   }
 
   async approveSubmission(actor: AuthenticatedUser, submissionId: string) {

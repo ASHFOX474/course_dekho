@@ -8,6 +8,7 @@ import { UserRole } from "@/lib/types";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { WorkspacePreferences } from "@/components/layout/WorkspacePreferences";
 import { Topbar } from "@/components/layout/Topbar";
+import type { CourseNavigation } from "@/lib/course-sections";
 
 /**
  * Wraps every authenticated page with the Sidebar + Topbar and makes
@@ -18,10 +19,12 @@ export function AppShell({
   children,
   title,
   allowedRoles,
+  courseNavigation,
 }: {
   children: ReactNode;
   title?: string;
   allowedRoles?: UserRole[];
+  courseNavigation?: CourseNavigation;
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
@@ -49,7 +52,7 @@ export function AppShell({
       <WorkspacePreferences userId={user.id} />
       <a href="#main-content" className="skip-link">Skip to content</a>
       {menuOpen && <button aria-label="Close navigation" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" />}
-      <div id="workspace-navigation" className={`workspace-navigation ${menuOpen ? "is-open" : ""}`}><Sidebar onNavigate={() => setMenuOpen(false)} /></div>
+      <div id="workspace-navigation" className={`workspace-navigation ${menuOpen ? "is-open" : ""}`}><Sidebar courseNavigation={courseNavigation} onNavigate={() => setMenuOpen(false)} /></div>
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar title={title} onMenu={() => setMenuOpen(open => !open)} menuOpen={menuOpen} />
         <main id="main-content" className="workspace-main"><div className="workspace-content">

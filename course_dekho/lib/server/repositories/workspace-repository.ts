@@ -1,5 +1,8 @@
 import type { StoredFile } from "../storage/files.ts";
+import type { ResourceEdit } from '../../resource-edit.ts';
+import { queryCreateResourceEdit } from '../db/queries/resource-edit-queries.ts';
 import {
+  queryRemoveResource,
   queryAccessHistory,
   queryAdminStats,
   queryAllSubmissions,
@@ -46,6 +49,8 @@ import type {
 } from "../domain/models.ts";
 
 export interface WorkspaceRepository {
+  createResourceEdit(resourceId: string, actorId: string, input: ResourceEdit): Promise<string | null>;
+  removeResource(resourceId: string): Promise<boolean>;
   getProfile(userId: string): Promise<UserProfile | null>;
   getLearning(userId: string): Promise<LearningOverview>;
   listBookmarks(userId: string): Promise<BookmarkView[]>;
@@ -85,10 +90,17 @@ export interface WorkspaceRepository {
 }
 
 export class PostgresWorkspaceRepository implements WorkspaceRepository {
+  createResourceEdit(resourceId: string, actorId: string, input: ResourceEdit): Promise<string | null> {
+    return queryCreateResourceEdit(this.executor, resourceId, actorId, input);
+  }
   private readonly executor: DatabaseExecutor;
 
   constructor(executor: DatabaseExecutor) {
     this.executor = executor;
+  }
+
+  removeResource(resourceId: string): Promise<boolean> {
+    return queryRemoveResource(this.executor, resourceId);
   }
 
   async getProfile(userId: string): Promise<UserProfile | null> {

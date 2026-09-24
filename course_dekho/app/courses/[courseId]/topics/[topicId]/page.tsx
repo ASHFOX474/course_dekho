@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Bookmark, ChevronRight, ExternalLink } from "lucide-react";
 
+import { ResourceLinkForm } from '@/components/ui/ResourceLinkForm';
+import { RemoveResourceButton } from '@/components/ui/RemoveResourceButton';
+import { EditResourceButton } from '@/components/ui/EditResourceButton';
 import { AppShell } from "@/components/layout/AppShell";
 import { ResourceTypeIcon } from "@/components/ui/ResourceTypeIcon";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -12,7 +15,7 @@ import {
   getCourse,
   listCourseTopics,
   listTopicResources,
-  resourceTypeLabel,
+  courseResourceTypeLabel as resourceTypeLabel,
   type ApprovedResourceDto,
   type CourseSummaryDto,
   type TopicSummaryDto,
@@ -21,19 +24,16 @@ import { createBookmark, deleteBookmark, listBookmarks } from "@/lib/client/work
 import { useDatabaseData } from "@/lib/client/use-database-data";
 import type { ResourceType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { isCourseResource, topicResourceTypes } from "@/lib/resource-placement";
 
 const ALL = "All";
 type FilterTab = typeof ALL | ResourceType;
 
 const filterTabs: FilterTab[] = [
   ALL,
-  "Study Material",
-  "Practice Material",
-  "Book",
   "Tutorial",
-  "Slide",
   "Question",
-  "LeetCode Problem",
+  "Practice",
 ];
 
 function errorMessage(error: unknown): string {
@@ -42,12 +42,15 @@ function errorMessage(error: unknown): string {
 
 export default function TopicResourcesPage() {
   const params = useParams<{ courseId: string; topicId: string }>();
+  const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
   const bookmarkState = useDatabaseData(
     `topic-bookmarks:${user?.id ?? "anonymous"}:${user?.role ?? "none"}`,
     user?.role === "admin" ? async () => [] : listBookmarks,
     []
   );
+  const [addingResource, setAddingResource] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const [course, setCourse] = useState<CourseSummaryDto | null>(null);
   const [topic, setTopic] = useState<TopicSummaryDto | null>(null);
   const [resources, setResources] = useState<ApprovedResourceDto[]>([]);
@@ -82,13 +85,12 @@ export default function TopicResourcesPage() {
       });
 
     return () => controller.abort();
-  }, [isAuthLoading, params.courseId, params.topicId, requestKey, user]);
+  }, [isAuthLoading, params.courseId, params.topicId, requestKey, user, refreshVersion]);
 
   const visibleResources = useMemo(
     () =>
-      activeFilter === ALL
-        ? resources
-        : resources.filter((resource) => resourceTypeLabel(resource.type) === activeFilter),
+      resources.filter((resource) => !isCourseResource(resource.type) &&
+        (activeFilter === ALL || resourceTypeLabel(resource.type) === activeFilter)),
     [activeFilter, resources]
   );
 
@@ -153,6 +155,9 @@ export default function TopicResourcesPage() {
           </p>
         </div>
 
+        {user?.role === 'admin' && <div><button className="action-primary" onClick={() => setAddingResource(true)}>Add resource link</button></div>}
+        {user?.role === 'admin' && addingResource && <ResourceLinkForm courseId={course.id} topicId={topic.id} topicName={topic.name} defaultResourceType={topicResourceTypes.find(type => resourceTypeLabel(type) === activeFilter)} onClose={() => setAddingResource(false)} onSaved={() => { setAddingResource(false); setRefreshVersion(value => value + 1); }} />}
+
         <div className="flex flex-wrap gap-2">
           {filterTabs.map((filter) => (
             <button
@@ -189,7 +194,12 @@ export default function TopicResourcesPage() {
                   (bookmark) => bookmark.targetType === "resource" && bookmark.targetId === resource.id
                 );
                 return (
-                  <tr key={resource.id} className="hover:bg-slate-50">
+                  <tr key={resource.id} className="cursor-pointer hover:bg-slate-50"
+                    title="Double-click to open resource"
+                    onDoubleClick={event => {
+                      if ((event.target as Element).closest('a, button, input, select, textarea')) return;
+                      router.push(`/resources/${resource.id}`);
+                    }}>
                     <td className="px-4 py-3">
                       <Link
                         href={`/resources/${resource.id}`}
@@ -204,6 +214,7 @@ export default function TopicResourcesPage() {
                     <td className="px-4 py-3 text-slate-500">{resource.year ?? "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
+                        {user?.role === 'admin' && <><EditResourceButton resource={resource} onSaved={() => setRefreshVersion(value => value + 1)} /><RemoveResourceButton resourceId={resource.id} title={resource.title} onRemoved={() => setResources(current => current.filter(item => item.id !== resource.id))} /></>}
                         {user?.role !== "admin" && <button
                           type="button"
                           onClick={() => void toggleResourceBookmark(resource.id)}

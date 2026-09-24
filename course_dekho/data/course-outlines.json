@@ -1,0 +1,375 @@
+[
+  {
+    "code": "CSE-101",
+    "name": "Structured Programming",
+    "description": "Learn C programming through control flow, functions, arrays, pointers, data structures, file handling, and advanced language features.",
+    "topics": [
+      {
+        "name": "Programming Fundamentals",
+        "description": "Write C programs using variables, input/output, operators, branching, and loops.",
+        "subtopics": [
+          "Basic C syntax",
+          "Variables & data types",
+          "Input/output",
+          "Operators",
+          "Type conversion",
+          "if / else",
+          "switch",
+          "Loops",
+          "Nested loops",
+          "Basic problem solving",
+          "Mathematical problems"
+        ]
+      },
+      {
+        "name": "Functions & Recursion",
+        "description": "Organize programs with functions and solve problems through recursion.",
+        "subtopics": [
+          "Functions",
+          "Parameters",
+          "Return values",
+          "Pass by value",
+          "Function decomposition",
+          "Recursion",
+          "Recursion trees",
+          "Recursive problems"
+        ]
+      },
+      {
+        "name": "Arrays & Strings",
+        "description": "Store, search, and manipulate multidimensional arrays and null-terminated C strings.",
+        "subtopics": [
+          "1D arrays",
+          "2D arrays",
+          "3D arrays",
+          "Array searching",
+          "Array manipulation",
+          "C strings",
+          "Null character",
+          "String manipulation",
+          "Substrings",
+          "Caesar cipher",
+          "Tokenization"
+        ]
+      },
+      {
+        "name": "Pointers & Dynamic Memory",
+        "description": "Use pointers and dynamic allocation to manage arrays, matrices, and memory safely.",
+        "subtopics": [
+          "Pointer fundamentals",
+          "Dereferencing",
+          "Pointer arithmetic",
+          "Pointer tracing",
+          "Pointer-to-pointer",
+          "malloc",
+          "calloc",
+          "realloc",
+          "free",
+          "Dynamic arrays",
+          "Dynamic matrices",
+          "Memory leaks"
+        ]
+      },
+      {
+        "name": "Structures & User-Defined Data Types",
+        "description": "Model data using structures, unions, enumerations, and type aliases; understand copying and memory layout.",
+        "subtopics": [
+          "Structures",
+          "Nested structures",
+          "Structure pointers",
+          "typedef",
+          "Enum",
+          "Union",
+          "Structure assignment",
+          "Shallow copy",
+          "Deep copy",
+          "Padding & memory layout"
+        ]
+      },
+      {
+        "name": "Files & Advanced C",
+        "description": "Read and write files, process command-line arguments, and organize persistent programs.",
+        "subtopics": [
+          "File handling",
+          "File modes",
+          "Reading/writing",
+          "Persistent data",
+          "Command-line arguments",
+          "File processing",
+          "Program organization"
+        ]
+      },
+      {
+        "name": "Advanced C Programming",
+        "description": "Apply callbacks, variadic functions, bit operations, and preprocessing to advanced C problems.",
+        "subtopics": [
+          "Function pointers",
+          "Callback functions",
+          "Variadic functions",
+          "Bitwise operations",
+          "Bit manipulation",
+          "Bit fields",
+          "Macros",
+          "Preprocessor",
+          "Advanced programming problems"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "CSE-103",
+    "name": "Discrete Mathematics",
+    "description": "Develop the mathematical foundations of computing through logic, proof, counting, discrete structures, and probability.",
+    "topics": [
+      {
+        "name": "Sets, Relations & Functions",
+        "description": "Describe sets, relations, and functions and analyze their properties.",
+        "subtopics": [
+          "Sets",
+          "Set operations",
+          "Cartesian products",
+          "Relations",
+          "Relation properties",
+          "Equivalence relations",
+          "Functions",
+          "Injective",
+          "Surjective",
+          "Bijective",
+          "Composition",
+          "Inverse functions"
+        ]
+      },
+      {
+        "name": "Logic & Mathematical Proof",
+        "description": "Express logical statements and construct valid mathematical arguments and proofs.",
+        "subtopics": [
+          "Propositions",
+          "Logical operators",
+          "Truth tables",
+          "Logical equivalence",
+          "Predicates",
+          "Quantifiers",
+          "Negation",
+          "Arguments",
+          "Validity",
+          "Direct proof",
+          "Contradiction",
+          "Contrapositive",
+          "Counterexample",
+          "Well-ordering"
+        ]
+      },
+      {
+        "name": "Number Theory & Mathematical Induction",
+        "description": "Apply divisibility, modular arithmetic, and induction to integer problems.",
+        "subtopics": [
+          "Divisibility",
+          "Prime numbers",
+          "GCD",
+          "Euclidean algorithm",
+          "Bézout identity",
+          "Modular arithmetic",
+          "Congruence",
+          "Unique factorization",
+          "Weak induction",
+          "Strong induction"
+        ]
+      },
+      {
+        "name": "Counting & Combinatorics",
+        "description": "Solve counting problems using permutations, combinations, and combinatorial principles.",
+        "subtopics": [
+          "Basic counting principles",
+          "Permutations",
+          "Combinations",
+          "Pigeonhole principle",
+          "Inclusion-exclusion",
+          "Handshake problems",
+          "Restricted counting",
+          "Catalan problems"
+        ]
+      },
+      {
+        "name": "Recurrence & Generating Functions",
+        "description": "Model sequences with recurrence relations and solve counting problems with generating functions.",
+        "subtopics": [
+          "Recurrence relations",
+          "First-order recurrence",
+          "Second-order recurrence",
+          "Linear recurrence",
+          "Characteristic equation",
+          "Non-homogeneous recurrence",
+          "Rabbit problems",
+          "Generating functions",
+          "Coefficient extraction",
+          "Restricted strings",
+          "Generating-function counting"
+        ]
+      },
+      {
+        "name": "Graphs & Trees",
+        "description": "Analyze graphs, trees, partial orders, and their fundamental algorithms.",
+        "subtopics": [
+          "Graph basics",
+          "Degree",
+          "Paths",
+          "Cycles",
+          "Connected graphs",
+          "Euler path",
+          "Euler circuit",
+          "Graph isomorphism",
+          "Planar graphs",
+          "Graph coloring",
+          "Trees",
+          "Binary trees",
+          "BST",
+          "Tree traversal",
+          "Hasse diagrams",
+          "Partial orders",
+          "Topological sorting"
+        ]
+      },
+      {
+        "name": "Probability, Algebra & Advanced Topics",
+        "description": "Explore probability, algebraic structures, and asymptotic reasoning for computing.",
+        "subtopics": [
+          "Basic probability",
+          "Conditional probability",
+          "Bayes' theorem",
+          "Independent events",
+          "Dice problems",
+          "Birthday problem",
+          "Groups",
+          "Algebraic structures",
+          "Matrix groups",
+          "Asymptotic reasoning",
+          "Algorithmic counting"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "CSE-107",
+    "name": "Object-Oriented Programming",
+    "description": "Design object-oriented software in C++ and Java using abstraction, inheritance, generic programming, collections, and concurrency.",
+    "topics": [
+      {
+        "name": "OOP Fundamentals",
+        "description": "Model programs with classes and objects, encapsulate state, and manage object lifecycles.",
+        "subtopics": [
+          "Procedural vs OOP",
+          "Classes",
+          "Objects",
+          "Data members",
+          "Member functions",
+          "Access specifiers",
+          "Encapsulation",
+          "Data hiding",
+          "Constructors",
+          "Destructors"
+        ]
+      },
+      {
+        "name": "Inheritance & Polymorphism",
+        "description": "Build class hierarchies and distinguish overloading, overriding, and forms of polymorphism.",
+        "subtopics": [
+          "Inheritance",
+          "Base/derived classes",
+          "Single inheritance",
+          "Multilevel inheritance",
+          "Multiple inheritance",
+          "Hierarchical inheritance",
+          "Function overloading",
+          "Function overriding",
+          "Compile-time polymorphism",
+          "Runtime polymorphism"
+        ]
+      },
+      {
+        "name": "Virtual Functions & Abstraction",
+        "description": "Design abstract contracts and use virtual dispatch and interfaces.",
+        "subtopics": [
+          "Virtual functions",
+          "Dynamic binding",
+          "Pure virtual functions",
+          "Abstract classes",
+          "Interfaces",
+          "Abstract class vs interface",
+          "Virtual destructors"
+        ]
+      },
+      {
+        "name": "Operator Overloading & Object Copy",
+        "description": "Implement operators and correct object copying for classes that manage resources.",
+        "subtopics": [
+          "Operator overloading",
+          "Unary operators",
+          "Binary operators",
+          "Friend functions",
+          "Friend classes",
+          "Stream operators",
+          "Copy constructor",
+          "Assignment operator",
+          "Shallow copy",
+          "Deep copy",
+          "Dynamic memory",
+          "Rule of Three"
+        ]
+      },
+      {
+        "name": "Templates, STL & Exception Handling",
+        "description": "Write generic C++ code with templates and STL and handle exceptional conditions.",
+        "subtopics": [
+          "Function templates",
+          "Class templates",
+          "Generic programming",
+          "STL",
+          "Containers",
+          "Iterators",
+          "Algorithms",
+          "Exception handling",
+          "try",
+          "throw",
+          "catch",
+          "Custom exceptions",
+          "Custom manipulators"
+        ]
+      },
+      {
+        "name": "Java OOP & Collections",
+        "description": "Apply Java object-oriented concepts, generics, and collection APIs.",
+        "subtopics": [
+          "Java classes",
+          "Objects",
+          "Java inheritance",
+          "Java polymorphism",
+          "Abstract classes",
+          "Interfaces",
+          "Generics",
+          "Collections",
+          "ArrayList",
+          "Vector",
+          "Iterators",
+          "equals()",
+          "hashCode()"
+        ]
+      },
+      {
+        "name": "Java Advanced Programming",
+        "description": "Build Java programs with threads, synchronization, file streams, and network sockets.",
+        "subtopics": [
+          "Threads",
+          "Thread lifecycle",
+          "Runnable",
+          "Synchronization",
+          "Race conditions",
+          "File I/O",
+          "Streams",
+          "Networking",
+          "Sockets",
+          "Client-server programming"
+        ]
+      }
+    ]
+  }
+]

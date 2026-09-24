@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Bookmark } from "lucide-react";
 
+import { RemoveResourceButton } from '@/components/ui/RemoveResourceButton';
+import { EditResourceButton } from '@/components/ui/EditResourceButton';
 import { Attachment } from "@/components/ui/Attachment";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
@@ -50,6 +52,7 @@ export default function ResourceDetailPage() {
     []
   );
   const [resource, setResource] = useState<ApprovedResourceDto | null>(null);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const [course, setCourse] = useState<CourseSummaryDto | null>(null);
   const [topic, setTopic] = useState<TopicSummaryDto | null>(null);
   const [resolvedResourceId, setResolvedResourceId] = useState("");
@@ -81,7 +84,7 @@ export default function ResourceDetailPage() {
       });
 
     return () => controller.abort();
-  }, [isAuthLoading, params.resourceId, user]);
+  }, [isAuthLoading, params.resourceId, user, refreshVersion]);
 
   if (isLoading || isAuthLoading) {
     return (
@@ -133,6 +136,7 @@ export default function ResourceDetailPage() {
 
   return (
     <AppShell title={resource.title}>
+      {user?.role === 'admin' && <div className="mb-4 flex gap-2"><EditResourceButton resource={resource} onSaved={() => setRefreshVersion(value => value + 1)} /><RemoveResourceButton resourceId={resource.id} title={resource.title} onRemoved={() => router.push(`/courses/${resource.courseId}/topics/${resource.topicId}`)} /></div>}
       <div className="space-y-5">
         <button
           type="button"

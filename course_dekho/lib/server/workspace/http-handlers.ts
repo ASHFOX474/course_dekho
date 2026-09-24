@@ -15,6 +15,7 @@ import {
   validateCreateSubmissionRequest,
   validateProgressRequest,
   validatePublicId,
+  validateResourceEdit,
   validateRejectSubmissionRequest,
 } from "../api/validation.ts";
 import { requireRole } from "../auth/authorization.ts";
@@ -204,6 +205,34 @@ export function createWorkspaceHttpHandlers(dependencies: WorkspaceHttpDependenc
         try { submission = await dependencies.workspaceService.createSubmission(actor, { ...input, ...(file ? { file } : {}) }); }
         catch (error) { if (file) await removeFile(file.storageKey).catch(() => undefined); throw error; }
         return jsonResponse({ data: toSubmissionDto(submission) }, 201);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async editResource(request: Request, resourceId: string): Promise<Response> {
+      try {
+        assertSafeMutation(request, dependencies);
+        const actor = await actorFor(request, dependencies, ['admin']);
+        await dependencies.workspaceService.editResource(actor, validatePublicId(resourceId, 'resourceId'), validateResourceEdit(await readJsonObject(request)));
+        return emptyResponse(204);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async removeResource(request: Request, resourceId: string): Promise<Response> {
+      try {
+        assertSafeMutation(request, dependencies);
+        const actor = await actorFor(request, dependencies, ["admin"]);
+        await dependencies.workspaceService.removeResource(actor, validatePublicId(resourceId, "resourceId"));
+        return emptyResponse(204);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async publishResourceLink(request: Request): Promise<Response> {
+      try {
+        assertSafeMutation(request, dependencies);
+        const actor = await actorFor(request, dependencies, ["admin"]);
+        const input = validateCreateSubmissionRequest(await readJsonObject(request));
+        const published = await dependencies.workspaceService.publishResourceLink(actor, input);
+        return jsonResponse({ data: toSubmissionDto(published) }, 201);
       } catch (error) { return errorResponse(error, dependencies); }
     },
 

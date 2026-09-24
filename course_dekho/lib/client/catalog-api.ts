@@ -155,11 +155,17 @@ const resourceTypeLabels: Record<ApprovedResourceDto["type"], ResourceType> = {
   tutorial: "Tutorial",
   slide: "Slide",
   question: "Question",
-  leetcode_problem: "LeetCode Problem",
+  leetcode_problem: "Practice",
 };
 
 export function resourceTypeLabel(type: ApprovedResourceDto["type"]): ResourceType {
   return resourceTypeLabels[type];
+}
+
+export function courseResourceTypeLabel(type: ApprovedResourceDto["type"]): ResourceType {
+  return type === "study_material" || type === "practice_material"
+    ? "Notes"
+    : resourceTypeLabel(type);
 }
 
 export function formatFileSize(fileSizeBytes: number | null): string | null {

@@ -71,15 +71,16 @@ export interface Topic {
   subtopics: string[]; // simple ordered list shown on the roadmap detail panel
 }
 
-/** The seven resource types the spec explicitly calls out. */
+/** Display resource types, including the combined course Notes category. */
 export type ResourceType =
+  | "Notes"
   | "Study Material"
   | "Practice Material"
   | "Book"
   | "Tutorial"
   | "Slide"
   | "Question"
-  | "LeetCode Problem";
+  | "Practice";
 
 /** A single piece of approved, published content attached to a topic. */
 export interface Resource {

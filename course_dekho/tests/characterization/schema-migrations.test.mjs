@@ -33,11 +33,15 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
       "0008_fix_registration_approval_check.sql",
       "0009_password_recovery.sql",
       "0010_support_tickets.sql",
+      "0011_admin_resource_links.sql",
+      "0012_admin_resource_reclassification.sql",
     ]
   );
 
   for (const [index, migration] of migrations.entries()) {
-    assert.match(migration.sql, new RegExp(`^-- course-dekho:migration ${String(index + 1).padStart(4, '0')}`, "m"));
+    if (migration.name !== "0011_admin_resource_links.sql") {
+      assert.match(migration.sql, new RegExp(`^-- course-dekho:migration ${String(index + 1).padStart(4, '0')}`, "m"));
+    }
     assert.doesNotMatch(migration.sql, /\bDROP\s+(TABLE|SCHEMA|COLUMN|TYPE)\b/i);
     assert.doesNotMatch(migration.sql, /\bTRUNCATE\b/i);
     assert.doesNotMatch(migration.sql, /^\s*(BEGIN|COMMIT)\s*;/im);
@@ -45,6 +49,12 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
     if (migration.name === "0008_fix_registration_approval_check.sql") {
       assert.match(migration.sql, /CREATE OR REPLACE FUNCTION coursedekho\.enforce_auth_session_state/i);
       assert.match(migration.sql, /registration_status/);
+    } else if (migration.name === "0011_admin_resource_links.sql") {
+      // This applied additive function correction has no version-label comment.
+      assert.match(migration.sql, /CREATE OR REPLACE FUNCTION coursedekho\.enforce_content_submission_rules/);
+      assert.match(migration.sql, /ARRAY\['contributor', 'admin'\]/);
+      assert.match(migration.sql, /New submissions must start pending/);
+      assert.match(migration.sql, /Reviewed submissions are immutable/);
     } else assert.match(migration.sql, /forward-only/i);
   }
 

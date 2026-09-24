@@ -607,12 +607,14 @@ export async function queryCreateSubmission(
       CROSS JOIN coursedekho.topic AS topic
       JOIN coursedekho.course AS course ON course.id = topic.course_id
       WHERE contributor.public_id = $1::uuid
-        AND contributor.role = 'contributor'
+        AND contributor.role IN ('contributor', 'admin')
         AND contributor.is_active
         AND course.public_id = $5::uuid
         AND topic.public_id = $6::uuid
         AND course.is_active
         AND topic.is_active
+        AND EXISTS (SELECT 1 FROM coursedekho.university u WHERE u.id = course.university_id AND u.is_active)
+        AND EXISTS (SELECT 1 FROM coursedekho.semester se WHERE se.id = course.semester_id AND se.university_id = course.university_id AND se.is_active)
       RETURNING public_id::text AS submission_public_id
     `,
     values: [
@@ -735,6 +737,13 @@ export async function queryApproveSubmission(
   const revisionInternalId = revision.rows[0]?.internal_id;
   if (!revisionInternalId) return false;
 
+  // Clear old subtype rows before inserting replacements. A delete and insert of
+  // the same primary key in sibling data-modifying CTEs has no execution order.
+  if (submission.target_content_internal_id) {
+    for (const table of ['study_material_detail', 'practice_material_detail', 'book_detail', 'tutorial_detail', 'slide_detail', 'question_detail', 'leetcode_problem_detail']) {
+      await executor.query({ text: `DELETE FROM coursedekho.${table} WHERE content_id = $1::bigint`, values: [contentInternalId] });
+    }
+  }
   const detailed = await executor.query<InternalIdRow, [string, string, ResourceType]>({
     name: "workspace-replace-approved-content-detail-v1",
     text: `
@@ -963,4 +972,13 @@ export async function queryAdminStats(executor: DatabaseExecutor): Promise<Admin
     values: [],
   });
   return result.rows[0];
+}
+
+export async function queryRemoveResource(executor: DatabaseExecutor, resourceId: string): Promise<boolean> {
+  const result = await executor.query({
+    text: `UPDATE coursedekho.content SET is_active = FALSE, archived_at = COALESCE(archived_at, now())
+      WHERE public_id = $1::uuid AND current_revision_id IS NOT NULL RETURNING id`,
+    values: [resourceId],
+  });
+  return result.rows.length > 0;
 }

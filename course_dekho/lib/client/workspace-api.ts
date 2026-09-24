@@ -54,7 +54,7 @@ function apiError(body: unknown): ApiErrorDto["error"] | null {
 
 async function requestData<T>(
   path: string,
-  options: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown; signal?: AbortSignal } = {}
+  options: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown; signal?: AbortSignal } = {}
 ): Promise<T> {
   const response = await fetch(path, {
     method: options.method ?? "GET",
@@ -148,6 +148,8 @@ export const createSubmission = (input: CreateSubmissionRequestDto & { file?: Fi
 };
 export const approveSubmission = (submissionId: string) =>
   requestData<SubmissionDto>(`/api/v1/admin/submissions/${encodeURIComponent(submissionId)}/approve`, { method: "POST" });
+export const publishResourceLink = (input: CreateSubmissionRequestDto) =>
+  requestData<SubmissionDto>('/api/v1/admin/resource-links', { method: 'POST', body: input });
 export const rejectSubmission = (submissionId: string, reason: string) =>
   requestData<SubmissionDto>(`/api/v1/admin/submissions/${encodeURIComponent(submissionId)}/reject`, { method: "POST", body: { reason } });
 export const getAdminStats = (signal?: AbortSignal) =>
@@ -186,3 +188,9 @@ export type {
   SubmissionDto,
   UserProfileDto,
 };
+
+export const removeResource = (resourceId: string) =>
+  requestData<void>(`/api/v1/admin/resources/${encodeURIComponent(resourceId)}`, { method: 'DELETE' });
+
+export const editResource = (resourceId: string, input: import('@/lib/resource-edit').ResourceEdit) =>
+  requestData<void>(`/api/v1/admin/resources/${encodeURIComponent(resourceId)}`, { method: 'PATCH', body: input });
