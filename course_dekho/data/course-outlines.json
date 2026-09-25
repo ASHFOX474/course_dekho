@@ -371,5 +371,423 @@
         ]
       }
     ]
+  },
+  {
+    "code": "CSE-209",
+    "name": "Computer Architecture",
+    "description": "Study CPU performance, MIPS assembly, datapath and control, pipelining, memory hierarchy, arithmetic hardware, parallelism, and I/O.",
+    "semester": {
+      "level": 2,
+      "term": 2
+    },
+    "topics": [
+      {
+        "name": "Computer Performance & CPU Fundamentals",
+        "description": "Evaluate CPU performance and quantify improvements using execution time, CPI, and performance laws.",
+        "subtopics": [
+          "Computer performance evaluation",
+          "CPU performance equation",
+          "Clock cycles",
+          "CPI calculation",
+          "Execution time calculation",
+          "MIPS rating",
+          "Throughput and response time",
+          "Moore's Law",
+          "Amdahl's Law",
+          "Performance improvement analysis"
+        ]
+      },
+      {
+        "name": "MIPS Architecture & Assembly Language",
+        "description": "Read, write, encode, and decode MIPS instructions and assembly programs.",
+        "subtopics": [
+          "MIPS instruction set architecture",
+          "Instruction formats (R, I, J type)",
+          "Registers",
+          "Addressing modes",
+          "MIPS assembly programming",
+          "Assembly to machine code conversion",
+          "Machine code decoding",
+          "Pseudo instructions",
+          "Procedure calls",
+          "Synchronization instructions"
+        ]
+      },
+      {
+        "name": "Datapath, ALU & Control Unit",
+        "description": "Analyze MIPS datapaths, arithmetic logic units, control signals, and exception handling.",
+        "subtopics": [
+          "Single cycle datapath",
+          "Multicycle datapath",
+          "MIPS datapath design",
+          "Control signals",
+          "ALU design",
+          "ALU operations",
+          "Control unit",
+          "Hardwired control",
+          "Microprogrammed control",
+          "Exception handling"
+        ]
+      },
+      {
+        "name": "Pipelining & Pipeline Hazards",
+        "description": "Analyze pipeline execution and resolve hazards using forwarding, stalls, and branch prediction.",
+        "subtopics": [
+          "Pipeline stages",
+          "Pipeline datapath",
+          "Pipeline registers",
+          "Data hazards",
+          "Structural hazards",
+          "Control hazards",
+          "Forwarding unit",
+          "Hazard detection unit",
+          "Pipeline stalls",
+          "Branch prediction",
+          "Dynamic branch prediction"
+        ]
+      },
+      {
+        "name": "Memory Hierarchy, Cache & Virtual Memory",
+        "description": "Analyze cache organization and performance and translate virtual addresses using page tables and TLBs.",
+        "subtopics": [
+          "Memory hierarchy",
+          "Locality of reference",
+          "Cache organization",
+          "Direct mapped cache",
+          "Fully associative cache",
+          "Set associative cache",
+          "Cache mapping problems",
+          "LRU replacement",
+          "Cache miss analysis",
+          "Write-through and write-back cache",
+          "TLB",
+          "Page table",
+          "Virtual memory",
+          "Address translation"
+        ]
+      },
+      {
+        "name": "Arithmetic Hardware & Floating Point",
+        "description": "Represent and compute binary and IEEE 754 values and examine arithmetic hardware.",
+        "subtopics": [
+          "Binary arithmetic",
+          "Overflow detection",
+          "Floating point representation",
+          "IEEE 754 format",
+          "Bias notation",
+          "Floating point addition",
+          "Floating point multiplication",
+          "Floating point division",
+          "Multiplication hardware",
+          "Division hardware"
+        ]
+      },
+      {
+        "name": "Parallelism, I/O & Multiprocessors",
+        "description": "Explore processor parallelism, multiprocessor memory systems, and I/O organization.",
+        "subtopics": [
+          "Instruction level parallelism",
+          "Superscalar processors",
+          "Multithreading",
+          "Shared memory multiprocessors",
+          "Message passing systems",
+          "UMA and NUMA",
+          "Cache coherence",
+          "DMA",
+          "Interrupt handling",
+          "I/O organization",
+          "RAID"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "CSE-213",
+    "name": "Software Engineering",
+    "description": "Study software processes, requirements, UML, architecture, object-oriented design, testing, project management, and maintenance.",
+    "semester": {
+      "level": 2,
+      "term": 2
+    },
+    "topics": [
+      {
+        "name": "Software Engineering Fundamentals & Software Process Models",
+        "description": "",
+        "subtopics": [
+          "Definition and characteristics of software",
+          "Software engineering principles",
+          "Software crisis",
+          "Software development challenges",
+          "Software process",
+          "Software process framework",
+          "Waterfall model",
+          "Incremental model",
+          "Spiral model",
+          "Prototype model",
+          "Agile development",
+          "Scrum methodology",
+          "Extreme Programming (XP)",
+          "Process comparison problems"
+        ]
+      },
+      {
+        "name": "Requirements Engineering & Analysis",
+        "description": "",
+        "subtopics": [
+          "Requirement engineering process",
+          "Functional requirements",
+          "Non-functional requirements",
+          "User requirements",
+          "System requirements",
+          "Requirement elicitation",
+          "Requirement analysis",
+          "Requirement specification (SRS)",
+          "Requirement validation",
+          "Requirement negotiation",
+          "Use case modelling",
+          "User stories",
+          "Requirement prioritization"
+        ]
+      },
+      {
+        "name": "UML Modeling & System Design",
+        "description": "",
+        "subtopics": [
+          "UML fundamentals",
+          "Use case diagram",
+          "Class diagram",
+          "Object diagram",
+          "Sequence diagram",
+          "Activity diagram",
+          "State diagram",
+          "Component diagram",
+          "Deployment diagram",
+          "Relationship identification",
+          "UML design problems"
+        ]
+      },
+      {
+        "name": "Software Architecture & Design Principles",
+        "description": "",
+        "subtopics": [
+          "Architectural design",
+          "Layered architecture",
+          "Client-server architecture",
+          "Repository architecture",
+          "Pipe and filter architecture",
+          "MVC architecture",
+          "Design principles",
+          "Modularity",
+          "Cohesion",
+          "Coupling",
+          "Information hiding",
+          "Interface design"
+        ]
+      },
+      {
+        "name": "Object-Oriented Analysis & Design",
+        "description": "",
+        "subtopics": [
+          "Object-oriented concepts",
+          "Classes and objects",
+          "Encapsulation",
+          "Inheritance",
+          "Polymorphism",
+          "Association",
+          "Aggregation",
+          "Composition",
+          "OO analysis",
+          "OO design process",
+          "CRC cards",
+          "Design patterns"
+        ]
+      },
+      {
+        "name": "Software Testing & Quality Assurance",
+        "description": "",
+        "subtopics": [
+          "Software verification and validation",
+          "Testing principles",
+          "Unit testing",
+          "Integration testing",
+          "System testing",
+          "Acceptance testing",
+          "Regression testing",
+          "Black box testing",
+          "White box testing",
+          "Equivalence partitioning",
+          "Boundary value analysis",
+          "Control flow testing",
+          "Test case design",
+          "Debugging techniques"
+        ]
+      },
+      {
+        "name": "Software Project Management",
+        "description": "",
+        "subtopics": [
+          "Software project planning",
+          "Project estimation",
+          "Cost estimation",
+          "COCOMO model",
+          "Scheduling",
+          "Risk management",
+          "Risk identification",
+          "Risk mitigation",
+          "Team management",
+          "Project monitoring",
+          "Earned value analysis"
+        ]
+      },
+      {
+        "name": "Software Maintenance & Evolution",
+        "description": "",
+        "subtopics": [
+          "Software maintenance types",
+          "Corrective maintenance",
+          "Adaptive maintenance",
+          "Perfective maintenance",
+          "Preventive maintenance",
+          "Software evolution",
+          "Legacy systems",
+          "Reverse engineering",
+          "Re-engineering",
+          "Refactoring"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "CSE-211",
+    "name": "Theory of Computation",
+    "description": "Study automata, formal languages, Turing machines, decidability, computational complexity, and proof techniques.",
+    "semester": {
+      "level": 2,
+      "term": 2
+    },
+    "topics": [
+      {
+        "name": "Finite Automata and Regular Languages",
+        "description": "",
+        "subtopics": [
+          "DFA",
+          "NFA",
+          "ε-NFA",
+          "Regular Expressions",
+          "Closure Properties",
+          "Pumping Lemma"
+        ]
+      },
+      {
+        "name": "Context Free Grammar and Languages",
+        "description": "",
+        "subtopics": [
+          "CFG Construction",
+          "Parse Trees",
+          "Ambiguous Grammar",
+          "Chomsky Normal Form",
+          "CYK Algorithm"
+        ]
+      },
+      {
+        "name": "Pushdown Automata",
+        "description": "",
+        "subtopics": [
+          "PDA Design",
+          "PDA Acceptance",
+          "CFG ↔ PDA Relationship",
+          "Language Recognition"
+        ]
+      },
+      {
+        "name": "Turing Machines",
+        "description": "",
+        "subtopics": [
+          "TM Construction",
+          "Multi-tape TM",
+          "Multi-track TM",
+          "TM Computation Problems"
+        ]
+      },
+      {
+        "name": "Decidability and Recognizability",
+        "description": "",
+        "subtopics": [
+          "Decidable Languages",
+          "Recursive Languages",
+          "RE Languages",
+          "Halting Problem",
+          "Undecidability"
+        ]
+      },
+      {
+        "name": "Computational Complexity and NP Completeness",
+        "description": "",
+        "subtopics": [
+          "P",
+          "NP",
+          "PSPACE",
+          "Cook's Theorem",
+          "NP-Complete Problems",
+          "Reduction"
+        ]
+      },
+      {
+        "name": "Theory of Computation Proof Techniques",
+        "description": "",
+        "subtopics": [
+          "Mathematical Proofs",
+          "Closure Proofs",
+          "Counting Arguments",
+          "Language Properties"
+        ]
+      }
+    ]
+  },
+  {
+    "code": "CSE-219",
+    "name": "Continuous Signals and Linear Systems",
+    "description": "Study continuous signals, linear systems, convolution, Fourier and Laplace transforms, state variable analysis, control systems, and modulation.",
+    "semester": {
+      "level": 2,
+      "term": 2
+    },
+    "topics": [
+      {
+        "name": "Signals and System Basics",
+        "description": "",
+        "subtopics": []
+      },
+      {
+        "name": "LTI Systems and Convolution",
+        "description": "",
+        "subtopics": []
+      },
+      {
+        "name": "Fourier Series and Fourier Transform",
+        "description": "",
+        "subtopics": []
+      },
+      {
+        "name": "Laplace Transform and ROC",
+        "description": "",
+        "subtopics": []
+      },
+      {
+        "name": "State Variable Analysis",
+        "description": "",
+        "subtopics": []
+      },
+      {
+        "name": "Control Systems and Analogies",
+        "description": "",
+        "subtopics": []
+      },
+      {
+        "name": "Communication and Modulation Concepts",
+        "description": "",
+        "subtopics": []
+      }
+    ]
   }
 ]

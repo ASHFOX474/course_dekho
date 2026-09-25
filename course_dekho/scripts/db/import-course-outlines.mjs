@@ -3,8 +3,12 @@ import pg from 'pg';
 import { resolveDatabaseUrl } from './migration-utils.mjs';
 
 // Targeted academic-data import; does not run the demo seed or publish resources.
-const outlines = JSON.parse(await readFile(new URL('../../data/course-outlines.json', import.meta.url), 'utf8'));
-const slug = value => value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const allOutlines = JSON.parse(await readFile(new URL('../../data/course-outlines.json', import.meta.url), 'utf8'));
+const requestedCode = process.argv[2];
+const outlines = requestedCode ? allOutlines.filter(course => course.code === requestedCode) : allOutlines;
+if (!outlines.length) throw new Error(`Unknown course: ${requestedCode}`);
+const semesterFor = course => course.semester ?? { level: 1, term: course.code === 'CSE-107' ? 2 : 1 };
+const slug = value => value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replaceAll('\u03b5', 'epsilon').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const client = new pg.Client({ connectionString: await resolveDatabaseUrl(new URL('../../', import.meta.url)) });
 await client.connect();
 try {
@@ -13,24 +17,28 @@ try {
   const university = (await client.query("SELECT id FROM coursedekho.university WHERE slug = 'buet' AND is_active")).rows[0];
   if (!university) throw new Error('Active BUET university not found');
   const semesters = new Map();
-  for (const term of [1, 2]) {
-    const semesterSlug = `level-1-term-${term}`;
+  const destinations = outlines.map(semesterFor);
+  if (!requestedCode) destinations.push({ level: 1, term: 2 });
+  for (const { level, term } of destinations) {
+    const semesterSlug = `level-${level}-term-${term}`;
     await client.query(`INSERT INTO coursedekho.semester (university_id, slug, name, sequence_order)
-      VALUES ($1, $2, $3, $4) ON CONFLICT (university_id, slug) DO NOTHING`, [university.id, semesterSlug, `Level 1, Term ${term}`, term]);
+      VALUES ($1, $2, $3, $4) ON CONFLICT (university_id, slug) DO NOTHING`, [university.id, semesterSlug, `Level ${level}, Term ${term}`, (level - 1) * 2 + term]);
     const semester = (await client.query('SELECT id FROM coursedekho.semester WHERE university_id = $1 AND slug = $2 AND is_active', [university.id, semesterSlug])).rows[0];
     if (!semester) throw new Error('Active destination semester not found');
-    semesters.set(term, semester);
+    semesters.set(semesterSlug, semester);
   }
   const summary = [];
-  const dsa = (await client.query(`SELECT id, public_id FROM coursedekho.course
-    WHERE university_id = $1 AND slug = 'data-structures-and-algorithms' AND is_active FOR UPDATE`, [university.id])).rows[0];
-  if (!dsa) throw new Error('Existing DSA course not found');
-  await client.query("UPDATE coursedekho.course SET semester_id = $1, code = 'CSE-105', updated_at = now() WHERE id = $2", [semesters.get(2).id, dsa.id]);
-  summary.push({ code: 'CSE-105', publicId: dsa.public_id, semester: 'Level 1, Term 2', action: 'Moved existing DSA course; retained its identity and content' });
+  if (!requestedCode) {
+    const dsa = (await client.query(`SELECT id, public_id FROM coursedekho.course
+      WHERE university_id = $1 AND slug = 'data-structures-and-algorithms' AND is_active FOR UPDATE`, [university.id])).rows[0];
+    if (!dsa) throw new Error('Existing DSA course not found');
+    await client.query("UPDATE coursedekho.course SET semester_id = $1, code = 'CSE-105', updated_at = now() WHERE id = $2", [semesters.get('level-1-term-2').id, dsa.id]);
+    summary.push({ code: 'CSE-105', publicId: dsa.public_id, semester: 'Level 1, Term 2', action: 'Moved existing DSA course; retained its identity and content' });
+  }
   for (const course of outlines) {
-    const term = course.code === 'CSE-107' ? 2 : 1;
-    const semester = semesters.get(term);
-    if (course.topics.length !== 7) throw new Error('Each course must have seven modules');
+    const { level, term } = semesterFor(course);
+    const semester = semesters.get(`level-${level}-term-${term}`);
+    if (!Array.isArray(course.topics)) throw new Error('Course topics must be an array');
     // Abort on a conflicting existing course instead of overwriting its roadmap.
     let existing = (await client.query("SELECT * FROM coursedekho.course WHERE university_id = $1 AND regexp_replace(code, '[^A-Z0-9]', '', 'g') = $2", [university.id, course.code.replaceAll('-', '')])).rows;
     if (existing.length > 1) throw new Error(`Ambiguous course: ${course.code}`);
@@ -62,7 +70,7 @@ try {
     if (actual.length !== expected.length || actual.some((t, i) => t.name !== expected[i].name || t.description !== expected[i].description || t.sequence_order !== expected[i].sequence_order || !t.is_active || t.subtopics.length !== expected[i].subtopics.length || t.subtopics.some((s, j) => s.title !== expected[i].subtopics[j].title || s.position !== j + 1 || !s.active))) {
       throw new Error(`Verification failed for ${course.code}; no changes applied`);
     }
-    summary.push({ code: course.code, publicId: saved.public_id, semester: `Level 1, Term ${term}`, modules: actual.length, subtopics: actual.reduce((sum, t) => sum + t.subtopics.length, 0) });
+    summary.push({ code: course.code, publicId: saved.public_id, semester: `Level ${level}, Term ${term}`, modules: actual.length, subtopics: actual.reduce((sum, t) => sum + t.subtopics.length, 0) });
   }
   await client.query('COMMIT');
   console.log(JSON.stringify({ university: 'BUET', courses: summary }, null, 2));

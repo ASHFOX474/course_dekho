@@ -1,4 +1,4 @@
-export type AcademicKind = 'university' | 'semester' | 'course' | 'topic';
+export type AcademicKind = 'university' | 'semester' | 'course' | 'topic' | 'subtopic';
 
 export interface AcademicRecord {
   id: string;
@@ -18,9 +18,9 @@ export type AcademicMutation =
   | { action: 'edit'; kind: AcademicKind; id: string; name: string; description?: string; code?: string; shortName?: string }
   | { action: 'archive'; kind: AcademicKind; id: string }
   | { action: 'restore'; kind: AcademicKind; id: string }
-  | { action: 'move'; kind: 'semester' | 'topic'; id: string; direction: 'up' | 'down' };
+  | { action: 'move'; kind: 'semester' | 'topic' | 'subtopic'; id: string; direction: 'up' | 'down' };
 
-export function filterAcademicRecords(records: AcademicRecord[], kind: AcademicKind, filters: { universityId?: string; semesterId?: string; courseId?: string } = {}) {
+export function filterAcademicRecords(records: AcademicRecord[], kind: AcademicKind, filters: { universityId?: string; semesterId?: string; courseId?: string; topicId?: string } = {}) {
   const byId = new Map(records.map(row => [row.id, row]));
   return records.filter(row => {
     if (row.kind !== kind) return false;
@@ -32,6 +32,7 @@ export function filterAcademicRecords(records: AcademicRecord[], kind: AcademicK
     }
     return (!filters.universityId || ancestry.get('university') === filters.universityId)
       && (!filters.semesterId || ancestry.get('semester') === filters.semesterId)
-      && (!filters.courseId || ancestry.get('course') === filters.courseId);
+      && (!filters.courseId || ancestry.get('course') === filters.courseId)
+      && (!filters.topicId || ancestry.get('topic') === filters.topicId);
   });
 }

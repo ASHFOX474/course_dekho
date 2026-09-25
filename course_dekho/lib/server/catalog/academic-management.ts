@@ -11,6 +11,7 @@ const entities = {
   semester: { parent: 'university', foreignKey: 'university_id' },
   course: { parent: 'semester', foreignKey: 'semester_id' },
   topic: { parent: 'course', foreignKey: 'course_id' },
+  subtopic: { parent: 'topic', foreignKey: 'topic_id' },
 } as const;
 
 export function validateAcademicMutation(input: unknown): AcademicMutation {
@@ -28,7 +29,7 @@ export function validateAcademicMutation(input: unknown): AcademicMutation {
   if (action !== 'create') result.id = validatePublicId(value.id, 'id');
   else if (kind !== 'university') result.parentId = validatePublicId(value.parentId, 'parentId');
   if (action === 'move') {
-    if (!['semester', 'topic'].includes(kind) || typeof value.direction !== 'string' || !['up', 'down'].includes(value.direction)) throw new ValidationError('Only semesters and topics can be reordered up or down.', {});
+    if (!['semester', 'topic', 'subtopic'].includes(kind) || typeof value.direction !== 'string' || !['up', 'down'].includes(value.direction)) throw new ValidationError('Only semesters, topics, and subtopics can be reordered up or down.', {});
     result.direction = value.direction;
   }
   if (action === 'create' || action === 'edit') {
@@ -61,6 +62,13 @@ const catalogSql = `
   FROM coursedekho.topic t JOIN coursedekho.course c ON c.id = t.course_id
   JOIN coursedekho.semester s ON s.id = c.semester_id AND s.university_id = c.university_id
   JOIN coursedekho.university u ON u.id = c.university_id
+  UNION ALL
+  SELECT st.public_id::text, 'subtopic', t.public_id::text, st.title, '', '', '', st.sequence_order,
+    st.is_active, t.is_active AND c.is_active AND s.is_active AND u.is_active
+  FROM coursedekho.topic_subtopic st JOIN coursedekho.topic t ON t.id = st.topic_id
+  JOIN coursedekho.course c ON c.id = t.course_id
+  JOIN coursedekho.semester s ON s.id = c.semester_id AND s.university_id = c.university_id
+  JOIN coursedekho.university u ON u.id = c.university_id
   ORDER BY "sequenceOrder" NULLS LAST, name, id`;
 
 export async function listAcademicRecords(db: DatabaseExecutor): Promise<AcademicRecord[]> {
@@ -74,6 +82,8 @@ export async function mutateAcademicRecord(pool: TransactionPool, input: Academi
     const records = await listAcademicRecords(db);
     const { kind, action } = input;
     const config = entities[kind];
+    const table = kind === 'subtopic' ? 'topic_subtopic' : kind;
+    const nameColumn = kind === 'subtopic' ? 'title' : 'name';
     const existing = action === 'create' ? undefined : records.find(row => row.kind === kind && row.id === input.id);
     if (action !== 'create' && !existing) throw new NotFoundError('This academic item no longer exists.');
     const parentId = action === 'create' ? input.parentId : existing?.parentId;
@@ -82,7 +92,7 @@ export async function mutateAcademicRecord(pool: TransactionPool, input: Academi
     if (action !== 'archive' && parent && (!parent.isActive || !parent.parentActive)) throw new ConflictError('Restore the parent structure before changing this item.');
 
     if (action === 'archive' || action === 'restore') {
-      await db.query({ text: `UPDATE coursedekho.${kind} SET is_active = $2, archived_at = CASE WHEN $2 THEN NULL ELSE COALESCE(archived_at, now()) END WHERE public_id = $1::uuid`, values: [input.id, action === 'restore'] });
+      await db.query({ text: `UPDATE coursedekho.${table} SET is_active = $2, archived_at = CASE WHEN $2 THEN NULL ELSE COALESCE(archived_at, now()) END WHERE public_id = $1::uuid`, values: [input.id, action === 'restore'] });
       return { id: input.id };
     }
     if (action === 'move') {
@@ -96,29 +106,29 @@ export async function mutateAcademicRecord(pool: TransactionPool, input: Academi
       // Immediate unique constraints require a free positive slot before swapping.
       // Archived siblings retain their slots. The transaction makes all three writes atomic.
       for (const [id, order] of [[input.id, max + 1], [neighbor.id, existing!.sequenceOrder], [input.id, neighbor.sequenceOrder]]) {
-        await db.query({ text: `UPDATE coursedekho.${kind} SET sequence_order = $2 WHERE public_id = $1::uuid`, values: [id, order] });
+        await db.query({ text: `UPDATE coursedekho.${table} SET sequence_order = $2 WHERE public_id = $1::uuid`, values: [id, order] });
       }
       return { id: input.id };
     }
     if (action === 'edit') {
-      const columns = ['name'];
+      const columns = [nameColumn];
       const values: unknown[] = [input.name];
       if (kind === 'university') { columns.push('short_name'); values.push(input.shortName); }
       if (kind === 'course') { columns.push('code'); values.push(input.code); }
       if (kind === 'course' || kind === 'topic') { columns.push('description'); values.push(input.description ?? ''); }
       values.push(input.id);
-      await db.query({ text: `UPDATE coursedekho.${kind} SET ${columns.map((column, index) => `${column} = $${index + 1}`).join(', ')} WHERE public_id = $${values.length}::uuid`, values });
+      await db.query({ text: `UPDATE coursedekho.${table} SET ${columns.map((column, index) => `${column} = $${index + 1}`).join(', ')} WHERE public_id = $${values.length}::uuid`, values });
       return { id: input.id };
     }
     const slug = `${kind}-${randomUUID()}`;
-    const columns = ['slug', 'name'];
+    const columns = ['slug', nameColumn];
     const values: unknown[] = [slug, input.name];
     const placeholders = ['$1', '$2'];
     const add = (column: string, value: unknown) => { columns.push(column); values.push(value); placeholders.push(`$${values.length}`); };
     if (kind === 'university') add('short_name', input.shortName);
     if (kind === 'course' || kind === 'topic') add('description', input.description ?? '');
     if (kind === 'course') add('code', input.code);
-    if (kind === 'semester' || kind === 'topic') {
+    if (kind === 'semester' || kind === 'topic' || kind === 'subtopic') {
       const max = Math.max(0, ...records.filter(row => row.kind === kind && row.parentId === parentId).map(row => row.sequenceOrder!));
       if (max >= 2147483647) throw new ConflictError('No ordering slots remain.');
       add('sequence_order', max + 1);
@@ -131,7 +141,7 @@ export async function mutateAcademicRecord(pool: TransactionPool, input: Academi
         placeholders.push(`(SELECT university_id FROM coursedekho.semester WHERE public_id = $${values.length}::uuid)`);
       }
     }
-    const result = await db.query<{ id: string }>({ text: `INSERT INTO coursedekho.${kind} (${columns.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING public_id::text AS id`, values });
+    const result = await db.query<{ id: string }>({ text: `INSERT INTO coursedekho.${table} (${columns.join(', ')}) VALUES (${placeholders.join(', ')}) RETURNING public_id::text AS id`, values });
     return result.rows[0];
   });
 }

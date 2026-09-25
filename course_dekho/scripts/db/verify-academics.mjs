@@ -25,9 +25,27 @@ try {
   const semester = await change({ action: 'create', kind: 'semester', parentId: university.id, name: 'Semester 1' });
   const semester2 = await change({ action: 'create', kind: 'semester', parentId: university.id, name: 'Semester 2' });
   const course = await change({ action: 'create', kind: 'course', parentId: semester.id, name: 'Verification course', code: 'TEST-101' });
+  assert.ok(await catalog.findCourse(course.id), 'Empty course is visible without initial content');
+  assert.deepEqual(await catalog.listTopics(course.id), []);
   const first = await change({ action: 'create', kind: 'topic', parentId: course.id, name: 'Arrays' });
   const second = await change({ action: 'create', kind: 'topic', parentId: course.id, name: 'Trees' });
   const third = await change({ action: 'create', kind: 'topic', parentId: course.id, name: 'Graphs' });
+  const subtopic = await change({ action: 'create', kind: 'subtopic', parentId: second.id, name: 'Binary trees' });
+  const subtopic2 = await change({ action: 'create', kind: 'subtopic', parentId: second.id, name: 'Traversal' });
+  const subtopicTitles = async () => (await catalog.findTopic(second.id)).subtopics.map(row => row.title);
+  assert.deepEqual(await subtopicTitles(), ['Binary trees', 'Traversal']);
+  await change({ action: 'move', kind: 'subtopic', id: subtopic2.id, direction: 'up' });
+  assert.deepEqual(await subtopicTitles(), ['Traversal', 'Binary trees']);
+  await change({ action: 'edit', kind: 'subtopic', id: subtopic.id, name: 'Binary search trees' });
+  await change({ action: 'archive', kind: 'subtopic', id: subtopic2.id });
+  assert.deepEqual(await subtopicTitles(), ['Binary search trees']);
+  await change({ action: 'archive', kind: 'topic', id: second.id });
+  await assert.rejects(change({ action: 'create', kind: 'subtopic', parentId: second.id, name: 'Blocked' }), { status: 409 });
+  await assert.rejects(change({ action: 'restore', kind: 'subtopic', id: subtopic2.id }), { status: 409 });
+  await change({ action: 'restore', kind: 'topic', id: second.id });
+  assert.deepEqual(await subtopicTitles(), ['Binary search trees']);
+  await change({ action: 'restore', kind: 'subtopic', id: subtopic2.id });
+  assert.deepEqual(await subtopicTitles(), ['Traversal', 'Binary search trees']);
   assert.deepEqual((await catalog.listTopics(course.id)).map(row => row.id), [first.id, second.id, third.id]);
   await change({ action: 'move', kind: 'topic', id: second.id, direction: 'up' });
   assert.deepEqual((await catalog.listTopics(course.id)).map(row => row.id), [second.id, first.id, third.id]);
@@ -58,7 +76,7 @@ try {
     assert.ok(await catalog.findCourse(course.id));
     assert.equal(await catalog.findTopic(first.id), null, 'Separately archived topic remains archived');
   }
-  console.log('PASS: create/edit all four levels, ordering, uniqueness, archive/restore, parent restrictions, and learner catalog visibility.');
+  console.log('PASS: empty course creation, all five levels, ordering, uniqueness, archive/restore, parent restrictions, and learner catalog visibility.');
 } finally {
   if (begun) { await client.query('ROLLBACK'); console.log('All verification data rolled back.'); }
   await client.end();

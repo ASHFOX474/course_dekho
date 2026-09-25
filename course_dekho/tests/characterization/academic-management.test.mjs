@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createAcademicHandler } from '../../lib/server/catalog/academic-http-handlers.ts';
 import { mutateAcademicRecord, validateAcademicMutation } from '../../lib/server/catalog/academic-management.ts';
+import { filterAcademicRecords } from '../../lib/academic-management.ts';
 
 const id = '00000000-0000-4000-8000-000000000201';
 const parentId = '00000000-0000-4000-8000-000000000202';
@@ -19,13 +20,27 @@ test('academic reads and every mutation require an admin before accessing the da
   const pool = { query() { assert.fail('Unauthorized query'); }, connect() { assert.fail('Unauthorized transaction'); } };
   for (const role of ['learner', 'contributor']) {
     const handler = createAcademicHandler(pool, { getSessionUser: async () => ({ id, role }) });
-    for (const body of [undefined, form, ...['edit', 'archive', 'restore', 'move'].map(action => ({ action, kind: 'topic', id }))]) {
+    for (const body of [undefined, form, ...['topic', 'subtopic'].flatMap(kind => ['create', 'edit', 'archive', 'restore', 'move'].map(action => ({ action, kind, id })))]) {
       assert.equal((await handler(request(body))).status, 403);
       assert.equal((await handler(request(body, false))).status, 401);
     }
   }
   const handler = createAcademicHandler(pool, { getSessionUser: async () => ({ id, role: 'admin' }) });
   assert.equal((await handler(request(form, true, 'https://untrusted.test'))).status, 403);
+});
+
+test('subtopics filter by full ancestry and cannot accept resource or parent-edit fields', () => {
+  const records = [
+    { id: 'u', kind: 'university' }, { id: 's', kind: 'semester', parentId: 'u' },
+    { id: 'c', kind: 'course', parentId: 's' }, { id: 't', kind: 'topic', parentId: 'c' },
+    { id: 'st', kind: 'subtopic', parentId: 't' }, { id: 'other', kind: 'subtopic', parentId: 'elsewhere' },
+  ];
+  assert.deepEqual(filterAcademicRecords(records, 'subtopic', { universityId: 'u', semesterId: 's', courseId: 'c', topicId: 't' }), [records[4]]);
+  assert.deepEqual(validateAcademicMutation({ action: 'create', kind: 'subtopic', parentId, name: ' Binary trees ' }), { action: 'create', kind: 'subtopic', parentId, name: 'Binary trees' });
+  for (const extra of [{ description: 'unsupported' }, { resourceId: id }]) {
+    assert.throws(() => validateAcademicMutation({ action: 'create', kind: 'subtopic', parentId, name: 'Trees', ...extra }), { status: 400 });
+  }
+  assert.throws(() => validateAcademicMutation({ action: 'edit', kind: 'subtopic', id, parentId, name: 'Trees' }), { status: 400 });
 });
 
 test('validation rejects forged identifiers, parent moves and unsupported field changes', () => {

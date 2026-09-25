@@ -84,8 +84,13 @@ try {
           const body = JSON.parse(request.postData);
           const row = academics.find(row => row.id === body.id);
           if (body.action === 'create') {
-            assert.equal(body.code, 'CSE-999'); assert.equal(body.parentId, semester.id);
-            academics.push(academic('course', id(999), body.parentId, body.name, { code: body.code })); created = true;
+            if (body.kind === 'course') {
+              assert.equal(body.code, 'CSE-999'); assert.equal(body.parentId, semester.id);
+              academics.push(academic('course', id(999), body.parentId, body.name, { code: body.code })); created = true;
+            } else {
+              assert.equal(body.kind, 'subtopic'); assert.equal(body.parentId, id(502));
+              academics.push(academic('subtopic', id(1000 + academics.length), body.parentId, body.name, { sequenceOrder: academics.filter(row => row.kind === 'subtopic' && row.parentId === body.parentId).length + 1 }));
+            }
           } else if (body.action === 'edit') { row.name = body.name; row.description = body.description; }
           else if (body.action === 'archive' || body.action === 'restore') row.isActive = body.action === 'restore';
           else if (body.action === 'move') {
@@ -158,6 +163,26 @@ try {
   await waitFor(`[...document.querySelectorAll('main ul button')].some(b => b.textContent === 'Restore')`);
   await clickButton('Restore', 'main ul');
   await waitFor(`document.body.innerText.includes('Item restored.')`);
+  await clickButton('Manage subtopics', 'main ul li');
+  await waitFor(`document.querySelector('select') && document.body.innerText.includes('New subtopic')`);
+  for (const name of ['Binary trees', 'Traversal']) {
+    await clickButton('New subtopic');
+    await waitFor(`document.querySelector('form input[name=name]')`);
+    await evaluate(`document.querySelector('form input[name=name]').value = ${JSON.stringify(name)}; document.querySelector('form').requestSubmit()`);
+    await waitFor(`document.body.innerText.includes('Subtopics updated successfully') && !document.querySelector('form')`);
+  }
+  await evaluate(`document.querySelector('[aria-label="Move Traversal up"]').click()`);
+  await waitFor(`document.body.innerText.includes('Order updated.') && document.querySelector('main ul li')?.textContent.startsWith('1. Traversal')`);
+  await clickButton('Edit', 'main ul li');
+  await waitFor(`document.querySelector('form input[name=name]')`);
+  await evaluate(`document.querySelector('form input[name=name]').value = 'Tree traversal methods'; document.querySelector('form').requestSubmit()`);
+  await waitFor(`document.body.innerText.includes('Subtopics updated successfully') && !document.querySelector('form')`);
+  await clickButton('Archive', 'main ul li');
+  await clickButton('Confirm archive', '[role=alertdialog]');
+  await waitFor(`document.body.innerText.includes('Item archived.')`);
+  await clickButton('Restore', 'main ul');
+  await waitFor(`document.body.innerText.includes('Item restored.')`);
+  console.log('PASS: admin creates, orders, edits, archives, and restores subtopics without initial resources');
   await screenshot('academic-management-desktop');
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   assert.equal(await evaluate('document.documentElement.scrollWidth > window.innerWidth'), false, 'Academic management mobile overflow');
