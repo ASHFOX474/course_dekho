@@ -10,14 +10,13 @@ import {
   queryListAllUsers,
   queryListPendingUsers,
   queryRejectUser,
-  queryRevokeAllSessionsForUser,
   queryRevokeSession,
   queryUserBySessionHash,
 } from "../db/queries/auth-queries.ts";
 import type { DatabaseExecutor } from "../db/executor.ts";
 import type { AuthUserRow } from "../db/rows.ts";
 import type { AuthenticatedUser, DirectoryUser, PendingUser, RegistrationStatus, UserRole } from "../domain/models.ts";
-import { ConflictError } from "../api/errors.ts";
+import { ConflictError, ForbiddenError } from "../api/errors.ts";
 
 export interface InternalUserRecord {
   internalId: string;
@@ -75,8 +74,11 @@ export interface AuthRepository {
   // Admin user directory: everyone regardless of role or review state, plus
   // the ability to deactivate (never hard-delete) an account.
   listAllUsers(): Promise<DirectoryUser[]>;
-  deactivateUser(userPublicId: string, deactivatedAt: Date): Promise<boolean>;
-  revokeAllSessionsForUser(userPublicId: string, revokedAt: Date): Promise<void>;
+  deactivateUser(
+    userPublicId: string,
+    deactivatedAt: Date,
+    actorPublicId: string
+  ): Promise<boolean>;
 }
 
 // pg unique-violation (23505) on the case-insensitive email/username indexes.
@@ -232,11 +234,28 @@ export class PostgresAuthRepository implements AuthRepository {
     }));
   }
 
-  deactivateUser(userPublicId: string, deactivatedAt: Date): Promise<boolean> {
-    return queryDeactivateUser(this.executor, userPublicId, deactivatedAt);
-  }
-
-  revokeAllSessionsForUser(userPublicId: string, revokedAt: Date): Promise<void> {
-    return queryRevokeAllSessionsForUser(this.executor, userPublicId, revokedAt);
+  async deactivateUser(
+    userPublicId: string,
+    deactivatedAt: Date,
+    actorPublicId: string
+  ): Promise<boolean> {
+    try {
+      return await queryDeactivateUser(
+        this.executor,
+        userPublicId,
+        deactivatedAt,
+        actorPublicId
+      );
+    } catch (error) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "42501"
+      ) {
+        throw new ForbiddenError();
+      }
+      throw error;
+    }
   }
 }

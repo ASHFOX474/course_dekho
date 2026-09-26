@@ -3,7 +3,7 @@ import { pool } from "@/lib/db";
 import { createAuthHttpHandlers } from "./http-handlers.ts";
 import { AuthService } from "./service.ts";
 
-const authService = new AuthService({ pool });
+export const authService = new AuthService({ pool });
 
 export const authHttpHandlers = createAuthHttpHandlers({
   service: authService,

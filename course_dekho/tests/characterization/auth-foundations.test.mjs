@@ -691,3 +691,100 @@ test("HTTP handlers cover login/session and map malformed or unexpected requests
   assert.equal(missingLogout.status, 401);
   assert.match(missingLogout.headers.get("set-cookie"), /Max-Age=0/);
 });
+
+test("admin deactivation calls the combined database procedure with the authenticated actor", async () => {
+  const calls = [];
+  const targetId = "00000000-0000-4000-8000-000000000102";
+  const admin = { ...user, id: "00000000-0000-4000-8000-000000000103", role: "admin" };
+  const deactivatedAt = new Date("2026-08-31T00:00:00.000Z");
+  const client = {
+    async query(statement) {
+      calls.push(typeof statement === "string" ? statement : statement.name);
+      return { rows: [], rowCount: 0 };
+    },
+    release() { calls.push("RELEASE"); },
+  };
+  const service = new AuthService({
+    pool: {
+      async connect() { calls.push("CONNECT"); return client; },
+      async query() { throw new Error("deactivation must use its transaction client"); },
+    },
+    repositoryFactory(executor) {
+      assert.equal(executor, client);
+      return {
+        async deactivateUser(userId, at, actorId) {
+          calls.push(["deactivate", userId, at, actorId]);
+          return true;
+        },
+      };
+    },
+    now: () => deactivatedAt,
+  });
+
+  await service.deactivateUser(admin, targetId);
+
+  assert.deepEqual(calls, [
+    "CONNECT",
+    "BEGIN",
+    ["deactivate", targetId, deactivatedAt, admin.id],
+    "COMMIT",
+    "RELEASE",
+  ]);
+});
+
+test("a failed combined deactivation rolls back without a partial commit", async () => {
+  const calls = [];
+  const targetId = "00000000-0000-4000-8000-000000000102";
+  const admin = { ...user, id: "00000000-0000-4000-8000-000000000103", role: "admin" };
+  const client = {
+    async query(statement) {
+      calls.push(typeof statement === "string" ? statement : statement.name);
+      return { rows: [], rowCount: 0 };
+    },
+    release() { calls.push("RELEASE"); },
+  };
+  const service = new AuthService({
+    pool: {
+      async connect() { calls.push("CONNECT"); return client; },
+      async query() { throw new Error("deactivation must use its transaction client"); },
+    },
+    repositoryFactory() {
+      return {
+        async deactivateUser() {
+          throw new Error("session revocation failed");
+        },
+      };
+    },
+  });
+
+  await assert.rejects(service.deactivateUser(admin, targetId), /session revocation failed/);
+  assert.equal(calls.includes("ROLLBACK"), true);
+  assert.equal(calls.includes("COMMIT"), false);
+  assert.equal(calls.at(-1), "RELEASE");
+});
+
+test("the auth repository calls deactivation with actor context and hides database denials", async () => {
+  const targetId = "00000000-0000-4000-8000-000000000102";
+  const actorId = "00000000-0000-4000-8000-000000000103";
+  const at = new Date("2026-08-31T00:00:00.000Z");
+  let seen;
+  const repository = new PostgresAuthRepository({
+    async query(config) {
+      seen = config;
+      return { rows: [{ p_changed: true }], rowCount: 1 };
+    },
+  });
+
+  assert.equal(await repository.deactivateUser(targetId, at, actorId), true);
+  assert.equal(seen.name, "auth-deactivate-user-v2");
+  assert.match(seen.text, /CALL coursedekho\.deactivate_user_and_revoke_sessions/);
+  assert.deepEqual(seen.values, [actorId, targetId, at, false]);
+
+  const denied = new PostgresAuthRepository({
+    async query() { throw { code: "42501", message: "database detail" }; },
+  });
+  await assert.rejects(
+    denied.deactivateUser(targetId, at, actorId),
+    (error) => error instanceof ForbiddenError && !error.message.includes("database detail")
+  );
+});

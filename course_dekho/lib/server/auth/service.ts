@@ -265,11 +265,14 @@ export class AuthService implements AuthApplicationService {
     await withTransaction(this.pool, async (client: PoolClient) => {
       const transactionRepository = this.repositoryFactory(client);
       const deactivatedAt = this.now();
-      const updated = await transactionRepository.deactivateUser(userPublicId, deactivatedAt);
+      const updated = await transactionRepository.deactivateUser(
+        userPublicId,
+        deactivatedAt,
+        actor.id
+      );
       if (!updated) {
         throw new InvalidTransitionError("This account is already deactivated.");
       }
-      await transactionRepository.revokeAllSessionsForUser(userPublicId, deactivatedAt);
     });
   }
 }

@@ -51,7 +51,7 @@ export async function queryLearningCourses(
   userId: string
 ): Promise<LearningCourseRow[]> {
   const result = await executor.query<LearningCourseRow, [string]>({
-    name: "workspace-learning-courses-v1",
+    name: "workspace-learning-courses-v2",
     text: `
       SELECT
         enrollment.public_id::text AS enrollment_public_id,
@@ -60,11 +60,10 @@ export async function queryLearningCourses(
         course.name AS course_name,
         enrollment.status AS enrollment_status,
         enrollment.enrolled_at,
-        COALESCE(
-          round(sum(COALESCE(progress.progress_percent, 0))::numeric /
-            NULLIF(count(topic.id), 0)),
-          0
-        )::integer AS progress_percent
+        coursedekho.calculate_course_progress(
+          enrollment.user_id,
+          course.id
+        ) AS progress_percent
       FROM coursedekho.enrollment AS enrollment
       JOIN coursedekho.app_user AS app_user ON app_user.id = enrollment.user_id
       JOIN coursedekho.course AS course ON course.id = enrollment.course_id
@@ -72,17 +71,10 @@ export async function queryLearningCourses(
       JOIN coursedekho.semester AS semester
         ON semester.id = course.semester_id
        AND semester.university_id = course.university_id
-      LEFT JOIN coursedekho.topic AS topic
-        ON topic.course_id = course.id
-       AND topic.is_active
-      LEFT JOIN coursedekho.topic_progress AS progress
-        ON progress.topic_id = topic.id
-       AND progress.user_id = app_user.id
       WHERE app_user.public_id = $1::uuid
         AND course.is_active
         AND university.is_active
         AND semester.is_active
-      GROUP BY enrollment.id, course.id
       ORDER BY enrollment.enrolled_at DESC, enrollment.id DESC
     `,
     values: [userId],

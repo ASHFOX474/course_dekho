@@ -38,10 +38,10 @@ test("catalog client uses authenticated no-store API reads and shared DTO types"
 
 test("academic pages are migrated sequentially away from direct mock imports", async () => {
   for (const path of [
-    "app/courses/page.tsx",
-    "app/courses/[courseId]/page.tsx",
-    "app/courses/[courseId]/topics/[topicId]/page.tsx",
-    "app/resources/[resourceId]/page.tsx",
+    "app/courses/page-client.tsx",
+    "app/courses/[courseId]/page-client.tsx",
+    "app/courses/[courseId]/topics/[topicId]/page-client.tsx",
+    "app/resources/[resourceId]/page-client.tsx",
   ]) {
     const page = await source(path);
     assert.match(page, /@\/lib\/client\/catalog-api/);

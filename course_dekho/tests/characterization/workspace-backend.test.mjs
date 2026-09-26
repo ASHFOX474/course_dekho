@@ -117,7 +117,7 @@ test("workspace repository executes and maps every database workflow", async () 
       calls.push(statement.name);
       switch (statement.name) {
         case "workspace-profile-v1": return result([profileRow]);
-        case "workspace-learning-courses-v1": return result([learningRow]);
+        case "workspace-learning-courses-v2": return result([learningRow]);
         case "workspace-topic-progress-v1": return result([progressRow]);
         case "workspace-bookmarks-v1": return result([bookmarkRow]);
         case "workspace-create-resource-bookmark-v1": return result([{ bookmark_public_id: bookmarkId }]);

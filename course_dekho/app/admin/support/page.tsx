@@ -1,2 +1,7 @@
 import { SupportWorkspace } from '@/components/support/SupportWorkspace';
-export default function AdminSupportPage() { return <SupportWorkspace admin />; }
+import { requirePageUser } from '@/lib/server/auth/page-guard';
+
+export default async function AdminSupportPage() {
+  await requirePageUser(['admin']);
+  return <SupportWorkspace admin />;
+}

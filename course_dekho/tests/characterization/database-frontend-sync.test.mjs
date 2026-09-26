@@ -275,16 +275,16 @@ test("approval is executed through one transaction and publishes only after revi
 
 test("all formerly mocked pages consume the database workspace client", async () => {
   for (const path of [
-    "app/dashboard/page.tsx",
-    "app/profile/page.tsx",
-    "app/progress/page.tsx",
-    "app/bookmarks/page.tsx",
-    "app/access-history/page.tsx",
-    "app/solved-questions/page.tsx",
-    "app/contributor/submissions/page.tsx",
-    "app/admin/approvals/page.tsx",
-    "app/courses/[courseId]/topics/[topicId]/page.tsx",
-    "app/resources/[resourceId]/page.tsx",
+    "app/dashboard/page-client.tsx",
+    "app/profile/page-client.tsx",
+    "app/progress/page-client.tsx",
+    "app/bookmarks/page-client.tsx",
+    "app/access-history/page-client.tsx",
+    "app/solved-questions/page-client.tsx",
+    "app/contributor/submissions/page-client.tsx",
+    "app/admin/approvals/page-client.tsx",
+    "app/courses/[courseId]/topics/[topicId]/page-client.tsx",
+    "app/resources/[resourceId]/page-client.tsx",
   ]) {
     assert.match(await source(path), /@\/lib\/client\/workspace-api/);
   }

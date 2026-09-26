@@ -35,6 +35,7 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
       "0010_support_tickets.sql",
       "0011_admin_resource_links.sql",
       "0012_admin_resource_reclassification.sql",
+      "0013_checklist_routines.sql",
     ]
   );
 

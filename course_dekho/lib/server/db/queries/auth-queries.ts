@@ -392,15 +392,6 @@ const listAllUsersSql = `
   ORDER BY app_user.created_at DESC, app_user.id DESC
 `;
 
-const deactivateUserSql = `
-  UPDATE coursedekho.app_user
-  SET is_active = FALSE,
-      deactivated_at = $2
-  WHERE public_id = $1::uuid
-    AND is_active
-  RETURNING public_id::text AS user_public_id
-`;
-
 export async function queryListAllUsers(
   executor: DatabaseExecutor
 ): Promise<DirectoryUserRow[]> {
@@ -415,31 +406,18 @@ export async function queryListAllUsers(
 export async function queryDeactivateUser(
   executor: DatabaseExecutor,
   userPublicId: string,
-  deactivatedAt: Date
+  deactivatedAt: Date,
+  actorPublicId: string
 ): Promise<boolean> {
-  const result = await executor.query<{ user_public_id: string }, [string, Date]>({
-    name: "auth-deactivate-user-v1",
-    text: deactivateUserSql,
-    values: [userPublicId, deactivatedAt],
+  const result = await executor.query<
+    { p_changed: boolean },
+    [string, string, Date, boolean]
+  >({
+    name: "auth-deactivate-user-v2",
+    text: `CALL coursedekho.deactivate_user_and_revoke_sessions(
+      $1::uuid, $2::uuid, $3::timestamptz, $4::boolean
+    )`,
+    values: [actorPublicId, userPublicId, deactivatedAt, false],
   });
-  return result.rowCount === 1;
-}
-
-const revokeAllSessionsForUserSql = `
-  UPDATE coursedekho.auth_session
-  SET revoked_at = $2
-  WHERE user_id = (SELECT id FROM coursedekho.app_user WHERE public_id = $1::uuid)
-    AND revoked_at IS NULL
-`;
-
-export async function queryRevokeAllSessionsForUser(
-  executor: DatabaseExecutor,
-  userPublicId: string,
-  revokedAt: Date
-): Promise<void> {
-  await executor.query({
-    name: "auth-revoke-all-sessions-for-user-v1",
-    text: revokeAllSessionsForUserSql,
-    values: [userPublicId, revokedAt],
-  });
+  return result.rows[0]?.p_changed === true;
 }
