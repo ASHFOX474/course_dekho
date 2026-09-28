@@ -258,4 +258,8 @@ export interface AdminStatsRow extends QueryResultRow {
   course_count: number;
   published_resource_count: number;
   submission_count: number;
+  pending_submission_count: number;
+  pending_user_count: number;
+  pending_enrollment_count: number;
+  open_support_count: number;
 }

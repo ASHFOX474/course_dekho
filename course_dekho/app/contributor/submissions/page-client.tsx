@@ -91,7 +91,7 @@ function NewSubmissionModal({ initial, onClose, onSubmit }: { initial: Submissio
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (submitting.current || !courseId || !topicId || !title.trim() || !description.trim()) return;
+    if (submitting.current || !courseId || !topicId || !title.trim()) return;
     submitting.current = true;
     setUploadProgress(0);
     setFormError(null);

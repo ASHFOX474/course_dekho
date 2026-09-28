@@ -5,7 +5,7 @@ import { WorkspaceService } from "./service.ts";
 import { createWorkspaceHttpHandlers } from "./http-handlers.ts";
 
 const authService = new AuthService({ pool });
-const workspaceService = new WorkspaceService({ pool });
+export const workspaceService = new WorkspaceService({ pool });
 
 export const workspaceHttpHandlers = createWorkspaceHttpHandlers({
   authService,

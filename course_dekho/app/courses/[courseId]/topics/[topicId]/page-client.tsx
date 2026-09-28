@@ -44,7 +44,7 @@ export default function TopicResourcesPage() {
   const params = useParams<{ courseId: string; topicId: string }>();
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const isLearner = user?.role === "learner" || user?.role === "contributor";
+  const isLearner = user?.role === "learner";
   const bookmarkState = useDatabaseData(
     `topic-bookmarks:${user?.id ?? "anonymous"}:${user?.role ?? "none"}`,
     user?.role === "admin" ? async () => [] : listBookmarks,
@@ -60,6 +60,8 @@ export default function TopicResourcesPage() {
     isLearner ? (signal) => listResourceCompletions(params.topicId, signal) : async () => [],
     []
   );
+  const [submissionNotice, setSubmissionNotice] = useState("");
+  const canAttach = user?.role === "admin" || user?.role === "contributor";
   const [addingResource, setAddingResource] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [course, setCourse] = useState<CourseSummaryDto | null>(null);
@@ -197,8 +199,9 @@ export default function TopicResourcesPage() {
 
         {(learning.error || completionState.error || completionError) && <p role="alert" className="text-sm text-rose-600">{completionError ?? learning.error ?? completionState.error}</p>}
 
-        {user?.role === 'admin' && <div><button className="action-primary" onClick={() => setAddingResource(true)}>Add resource link</button></div>}
-        {user?.role === 'admin' && addingResource && <ResourceLinkForm courseId={course.id} topicId={topic.id} topicName={topic.name} defaultResourceType={topicResourceTypes.find(type => resourceTypeLabel(type) === activeFilter)} onClose={() => setAddingResource(false)} onSaved={() => { setAddingResource(false); setRefreshVersion(value => value + 1); }} />}
+        {submissionNotice && <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{submissionNotice} <Link href="/contributor/submissions" className="font-semibold underline">View my submissions</Link></p>}
+        {canAttach && <div><button className="action-primary" onClick={() => setAddingResource(true)}>{user?.role === "contributor" ? "Attach resource" : "Add resource link"}</button></div>}
+        {canAttach && addingResource && <ResourceLinkForm key={`${topic.id}:${activeFilter}`} mode={user?.role === "contributor" ? "submit" : "publish"} courseId={course.id} topicId={topic.id} topicName={topic.name} defaultResourceType={topicResourceTypes.find(type => resourceTypeLabel(type) === activeFilter)} onClose={() => setAddingResource(false)} onSaved={() => { setAddingResource(false); if (user?.role === "contributor") setSubmissionNotice("Resource submitted for admin approval."); else setRefreshVersion(value => value + 1); }} />}
 
         <div className="flex flex-wrap gap-2">
           {filterTabs.map((filter) => (

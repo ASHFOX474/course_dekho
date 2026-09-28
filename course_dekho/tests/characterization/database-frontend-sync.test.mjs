@@ -128,8 +128,8 @@ test("learner navigation, profile logout, resource table, and server theme match
   assert.match(profile, /onClick=\{\(\) => void signOut\(\)\}/);
   assert.match(profile, /router\.replace\('\/login'\)/);
   assert.doesNotMatch(settings, /Compact workspace|Reduce motion/);
-  assert.match(settings, /updateDisplayPreference/);
-  assert.match(styles, /html\[data-theme="dark"\]/);
+  assert.match(settings, /saveTheme/);
+  assert.match(styles, /\.workspace\[data-theme="dark"\]/);
   assert.doesNotMatch(topic, />Year<\/th>/);
   assert.match(topic, /colSpan=\{4\}/);
 });

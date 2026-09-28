@@ -313,6 +313,38 @@ test("enrollment review and completion permissions fail closed by role and trans
   await assert.rejects(service.setResourceCompletion(admin, resourceId, true), error => error.code === "FORBIDDEN");
 });
 
+test("contributors cannot enroll or access learning tracking, but retain bookmarks and history", async () => {
+  const service = new WorkspaceService({
+    pool: {},
+    repositoryFactory: () => ({
+      async listBookmarks() { return [bookmarkRow]; },
+      async createBookmark() { return bookmarkRow; },
+      async deleteBookmark() { return true; },
+      async listAccessHistory() { return [accessRow]; },
+      async recordAccess() { return true; },
+    }),
+  });
+  const learnerActions = [
+    () => service.getLearning(teacher),
+    () => service.createEnrollment(teacher, courseId),
+    () => service.listResourceCompletions(teacher, topicId),
+    () => service.setResourceCompletion(teacher, resourceId, true),
+    () => service.setResourceCompletion(teacher, resourceId, false),
+    () => service.recordFolderActivity(teacher, courseId, topicId),
+    () => service.getContinueLearning(teacher),
+    () => service.listSolvedQuestions(teacher),
+    () => service.markSolved(teacher, resourceId),
+  ];
+  for (const action of learnerActions) {
+    await assert.rejects(action(), error => error.code === "FORBIDDEN");
+  }
+  assert.deepEqual(await service.listBookmarks(teacher), [bookmarkRow]);
+  assert.equal(await service.createBookmark(teacher, { targetType: "resource", targetId: resourceId }), bookmarkRow);
+  await service.deleteBookmark(teacher, bookmarkId);
+  assert.deepEqual(await service.listAccessHistory(teacher), [accessRow]);
+  await service.recordAccess(teacher, resourceId);
+});
+
 
 test("approval detail SQL covers every supported resource subtype", async () => {
   const { readFileSync } = await import("node:fs");

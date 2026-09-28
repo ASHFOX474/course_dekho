@@ -6,7 +6,7 @@ import { ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { UserRole } from "@/lib/types";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { WorkspacePreferences } from "@/components/layout/WorkspacePreferences";
+import { AdminAttentionProvider } from '@/components/layout/AdminAttention';
 import { Topbar } from "@/components/layout/Topbar";
 import type { CourseNavigation } from "@/lib/course-sections";
 
@@ -26,7 +26,7 @@ export function AppShell({
   allowedRoles?: UserRole[];
   courseNavigation?: CourseNavigation;
 }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, theme } = useAuth();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -47,9 +47,8 @@ export function AppShell({
 
   const roleIsAllowed = !allowedRoles || allowedRoles.includes(user.role);
 
-  return (
-    <div className={`workspace workspace-${user.role}`}>
-      <WorkspacePreferences userId={user.id} />
+  const workspace = (
+    <div className={`workspace workspace-${user.role}`} data-theme={theme}>
       <a href="#main-content" className="skip-link">Skip to content</a>
       {menuOpen && <button aria-label="Close navigation" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" />}
       <div id="workspace-navigation" className={`workspace-navigation ${menuOpen ? "is-open" : ""}`}><Sidebar courseNavigation={courseNavigation} onNavigate={() => setMenuOpen(false)} /></div>
@@ -72,4 +71,5 @@ export function AppShell({
       </div>
     </div>
   );
+  return user.role === 'admin' ? <AdminAttentionProvider>{workspace}</AdminAttentionProvider> : workspace;
 }

@@ -39,6 +39,7 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
       "0014_learner_enrollment_activity.sql",
       "0015_learner_activity_fk_indexes.sql",
       "0016_resource_derived_progress.sql",
+      "0017_learner_only_tracking.sql",
     ]
   );
 
@@ -120,7 +121,7 @@ test("semester ownership and ordered roadmap relationships are database-enforced
   assert.match(sql, /UNIQUE \(topic_id, sequence_order\)/i);
 });
 
-test("teacher learning and polymorphic bookmarks retain relational integrity", async () => {
+test("learner tracking and polymorphic bookmarks retain relational integrity", async () => {
   const sql = await migrationSql();
 
   assert.match(sql, /CREATE TABLE coursedekho\.enrollment[\s\S]*?user_id BIGINT NOT NULL/i);
@@ -135,6 +136,20 @@ test("teacher learning and polymorphic bookmarks retain relational integrity", a
   assert.match(sql, /CREATE UNIQUE INDEX uq_bookmark_user_course[\s\S]*?WHERE course_id IS NOT NULL/i);
   assert.match(sql, /CREATE UNIQUE INDEX uq_bookmark_user_topic[\s\S]*?WHERE topic_id IS NOT NULL/i);
   assert.match(sql, /CREATE UNIQUE INDEX uq_bookmark_user_content[\s\S]*?WHERE content_id IS NOT NULL/i);
+});
+
+test("teacher tracking cleanup is role-scoped and keeps database role guards separate from bookmarks", async () => {
+  const sql = await readFile(new URL("0017_learner_only_tracking.sql", migrationsDirectory), "utf8");
+  for (const table of ["enrollment", "topic_progress", "solved_question", "resource_completion", "learning_folder_activity"]) {
+    assert.match(sql, new RegExp(`DELETE FROM coursedekho\\.${table} AS activity\\s+USING coursedekho\\.app_user AS account\\s+WHERE activity.user_id = account.id AND account.role = 'contributor';`));
+    assert.match(sql, new RegExp(`BEFORE INSERT OR UPDATE ON coursedekho\\.${table}\\s+FOR EACH ROW EXECUTE FUNCTION coursedekho\\.enforce_learning_actor_role\\(\\);`));
+  }
+  assert.match(sql, /ARRAY\['learner'\]::coursedekho.user_role\[\]/);
+  assert.doesNotMatch(sql, /DELETE FROM coursedekho\.(bookmark|content_access|content_submission)/);
+  assert.doesNotMatch(sql, /CREATE OR REPLACE FUNCTION coursedekho\.enforce_learner_role/);
+  for (const table of ["enrollment", "topic_progress", "solved_question"]) {
+    assert.match(sql, new RegExp(`ALTER TABLE coursedekho\\.${table} ENABLE TRIGGER trg_${table}_prevent_delete;`));
+  }
 });
 
 test("enrollment review and learner activity state are additive and constrained", async () => {

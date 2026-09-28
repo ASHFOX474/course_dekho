@@ -1219,7 +1219,7 @@ export async function queryRejectSubmission(
 
 export async function queryAdminStats(executor: DatabaseExecutor): Promise<AdminStatsRow> {
   const result = await executor.query<AdminStatsRow>({
-    name: "workspace-admin-stats-v1",
+    name: "workspace-admin-stats-v2",
     text: `
       SELECT
         (SELECT count(*)::integer FROM coursedekho.app_user WHERE is_active) AS user_count,
@@ -1248,7 +1248,11 @@ export async function queryAdminStats(executor: DatabaseExecutor): Promise<Admin
             AND topic.is_active AND course.is_active
             AND university.is_active AND semester.is_active
         ) AS published_resource_count,
-        (SELECT count(*)::integer FROM coursedekho.content_submission) AS submission_count
+        (SELECT count(*)::integer FROM coursedekho.content_submission) AS submission_count,
+        (SELECT count(*)::integer FROM coursedekho.content_submission WHERE status = 'pending') AS pending_submission_count,
+        (SELECT count(*)::integer FROM coursedekho.app_user WHERE registration_status = 'pending' AND role IN ('learner', 'contributor')) AS pending_user_count,
+        (SELECT count(*)::integer FROM coursedekho.enrollment WHERE review_status = 'pending') AS pending_enrollment_count,
+        (SELECT count(*)::integer FROM coursedekho.support_ticket WHERE status = 'open') AS open_support_count
     `,
     values: [],
   });

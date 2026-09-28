@@ -356,5 +356,9 @@ export function adminStatsRowToDomain(row: AdminStatsRow): AdminStats {
       "published_resource_count"
     ),
     submissionCount: toSafeNonNegativeInteger(row.submission_count, "submission_count"),
+    pendingSubmissionCount: toSafeNonNegativeInteger(row.pending_submission_count, "pending_submission_count"),
+    pendingUserCount: toSafeNonNegativeInteger(row.pending_user_count, "pending_user_count"),
+    pendingEnrollmentCount: toSafeNonNegativeInteger(row.pending_enrollment_count, "pending_enrollment_count"),
+    openSupportCount: toSafeNonNegativeInteger(row.open_support_count, "open_support_count"),
   };
 }

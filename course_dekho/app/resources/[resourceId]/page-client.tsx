@@ -40,10 +40,11 @@ export default function ResourceDetailPage() {
   const params = useParams<{ resourceId: string }>();
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const isLearner = user?.role === "learner" || user?.role === "contributor";
+  const isLearner = user?.role === "learner";
+  const canBookmark = isLearner || user?.role === "contributor";
   const bookmarks = useDatabaseData(
     `resource-bookmarks:${user?.id ?? "anonymous"}:${user?.role ?? "none"}`,
-    isLearner ? listBookmarks : async () => [],
+    canBookmark ? listBookmarks : async () => [],
     []
   );
   const solved = useDatabaseData(
@@ -158,7 +159,7 @@ export default function ResourceDetailPage() {
           </div>
 
           <div className="flex gap-2">
-            {isLearner && <button
+            {canBookmark && <button
               type="button"
               onClick={() => void toggleResourceBookmark()}
               className={cn(

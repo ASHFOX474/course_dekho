@@ -60,11 +60,16 @@ function assertPolicyError(expectedCode) {
 test("role permissions preserve learner, contributor, and admin boundaries", () => {
   assert.equal(can("learner", "browse_approved_content"), true);
   assert.equal(can("learner", "bookmark_content"), true);
+  assert.equal(can("learner", "track_progress"), true);
+  assert.equal(can("learner", "solve_question"), true);
   assert.equal(can("learner", "submit_content"), false);
   assert.equal(can("learner", "manage_academic_structure"), false);
 
   assert.equal(can("contributor", "browse_approved_content"), true);
   assert.equal(can("contributor", "bookmark_content"), true);
+  assert.equal(can("contributor", "track_progress"), false);
+  assert.equal(can("contributor", "solve_question"), false);
+  assert.equal(can("contributor", "view_learning_history"), true);
   assert.equal(can("contributor", "submit_content"), true);
   assert.equal(can("contributor", "approve_submission"), false);
 

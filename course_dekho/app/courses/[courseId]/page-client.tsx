@@ -44,12 +44,14 @@ export default function CourseRoadmapPage() {
   const params = useParams<{ courseId: string }>();
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
-  const isLearner = user?.role === "learner" || user?.role === "contributor";
+  const isLearner = user?.role === "learner";
   const learning = useDatabaseData(
     `course-learning:${user?.id ?? "anonymous"}:${params.courseId}`,
     isLearner ? getLearning : async () => ({ courses: [], topics: [], enrollmentRequests: [] }),
     { courses: [], topics: [], enrollmentRequests: [] }
   );
+  const [submissionNotice, setSubmissionNotice] = useState<CourseSectionId | null>(null);
+  const canAttach = user?.role === "admin" || user?.role === "contributor";
   const [addingResource, setAddingResource] = useState<CourseSectionId | null>(null);
   const [course, setCourse] = useState<CourseSummaryDto | null>(null);
   const [topics, setTopics] = useState<TopicSummaryDto[]>([]);
@@ -215,9 +217,9 @@ export default function CourseRoadmapPage() {
                     >
                       {topic.name}
                     </span>
-                    {progress?.completed
+                    {isLearner && (progress?.completed
                       ? <CheckCircle2 size={16} aria-label="Completed" className="text-emerald-600" />
-                      : <><span className="text-[10px] tabular-nums text-slate-400">{progress?.progressPercent ?? 0}%</span><Circle size={14} aria-label="Not completed" className="text-slate-300" /></>}
+                      : <><span className="text-[10px] tabular-nums text-slate-400">{progress?.progressPercent ?? 0}%</span><Circle size={14} aria-label="Not completed" className="text-slate-300" /></>)}
                   </button>
                 );
               })}
@@ -295,7 +297,7 @@ export default function CourseRoadmapPage() {
                   placeholder="Search title or description" className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2" />
               </label>
               <label className="text-sm font-medium">Filter by topic
-                <select value={filters.topicId} onChange={event => updateFilters({ topicId: event.target.value })}
+                <select value={filters.topicId} onChange={event => { updateFilters({ topicId: event.target.value }); if (event.target.value) setSelectedTopicId(event.target.value); setAddingResource(null); }}
                   className="mt-1 block w-full max-w-64 rounded-lg border border-slate-300 bg-white px-3 py-2">
                   <option value="">All topics</option>
                   {topics.map(topic => <option key={topic.id} value={topic.id}>{topic.name}</option>)}
@@ -310,15 +312,16 @@ export default function CourseRoadmapPage() {
               </label>}
               {hasFilters && <button type="button" onClick={() => updateFilters(emptyFilters)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">Clear filters</button>}
             </div>}
-        {user?.role === 'admin' && <div className="rounded-xl bg-white/70 p-4">
+        {canAttach && <div className="rounded-xl bg-white/70 p-4">
           {section.id === 'resources' && <label className="text-sm font-medium">Topic for new resource
             <select className="ml-3 max-w-full rounded-lg border p-2" value={selectedTopic?.id ?? ''} onChange={event => { setSelectedTopicId(event.target.value); setAddingResource(null); }}>
               {!topics.length && <option value="">No active topics</option>}
               {topics.map(topic => <option key={topic.id} value={topic.id}>{topic.name}</option>)}
             </select>
           </label>}
-          <button disabled={!selectedTopic} className="action-primary ml-3" onClick={() => setAddingResource(section.id)}>Add resource link</button>
-          {addingResource === section.id && selectedTopic && <ResourceLinkForm key={`${section.id}:${selectedTopic.id}`} courseId={course.id} topicId={selectedTopic.id} topicName={section.id !== 'resources' ? course.name : selectedTopic.name} resourceTypes={formTypes} defaultResourceType={formTypes.find(type => type === filters.type)} onClose={() => setAddingResource(null)} onSaved={() => { setAddingResource(null); void listCourseResources(course.id).then(setResources).catch(err => setError(errorMessage(err))); }} />}
+          {submissionNotice === section.id && <p role="status" className="mb-3 text-sm text-emerald-700">Resource submitted for admin approval. <Link href="/contributor/submissions" className="font-semibold underline">View my submissions</Link></p>}
+          <button disabled={!selectedTopic} className="action-primary ml-3" onClick={() => setAddingResource(section.id)}>{user?.role === "contributor" ? "Attach resource" : "Add resource link"}</button>
+          {addingResource === section.id && selectedTopic && <ResourceLinkForm mode={user?.role === "contributor" ? "submit" : "publish"} key={`${section.id}:${selectedTopic.id}:${filters.type}`} courseId={course.id} topicId={selectedTopic.id} topicName={section.id !== 'resources' ? course.name : selectedTopic.name} resourceTypes={formTypes} defaultResourceType={formTypes.find(type => type === filters.type)} onClose={() => setAddingResource(null)} onSaved={() => { setAddingResource(null); if (user?.role === "contributor") { setSubmissionNotice(section.id); return; } void listCourseResources(course.id).then(setResources).catch(err => setError(errorMessage(err))); }} />}
         </div>}
 
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">

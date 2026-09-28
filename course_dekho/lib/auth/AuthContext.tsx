@@ -1,6 +1,9 @@
 "use client";
 
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, ReactNode, useContext, useRef, useState } from "react";
+
+import { getDisplayPreference, updateDisplayPreference } from "@/lib/client/workspace-api";
+import type { DisplayPreferenceDto } from "@/lib/server/api/dtos";
 
 import type { AppUser, UserRole } from "@/lib/types";
 
@@ -52,6 +55,8 @@ export interface RegisterInput {
 interface AuthContextValue {
   user: AppUser | null;
   isLoading: boolean;
+  theme: DisplayPreferenceDto["theme"];
+  saveTheme: (theme: DisplayPreferenceDto["theme"]) => Promise<void>;
   login: (identifier: string, password: string) => Promise<AuthResult>;
   register: (input: RegisterInput) => Promise<RegisterResult>;
   logout: () => Promise<void>;
@@ -91,39 +96,22 @@ async function readError(
   }
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function restoreSession() {
-      try {
-        const response = await fetch("/api/v1/session", {
-          cache: "no-store",
-          credentials: "same-origin",
-          signal: controller.signal,
-        });
-        if (response.ok) {
-          setUser(toAppUser((await response.json()) as UserResponse));
-        } else if (response.status === 401) {
-          setUser(null);
-        }
-      } catch (error) {
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          setUser(null);
-        }
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
-      }
-    }
-
-    void restoreSession();
-    return () => controller.abort();
-  }, []);
+export function AuthProvider({ children, initialUser, initialTheme }: {
+  children: ReactNode;
+  initialUser: UserResponse["data"] | null;
+  initialTheme: DisplayPreferenceDto["theme"];
+}) {
+  // User and theme enter the workspace together, including its server render.
+  const [session, setSession] = useState({
+    user: initialUser ? toAppUser({ data: initialUser }) : null,
+    theme: initialUser ? initialTheme : "light" as DisplayPreferenceDto["theme"],
+  });
+  const sessionVersion = useRef(0);
+  const { user, theme } = session;
+  const isLoading = false;
 
   async function login(identifier: string, password: string): Promise<AuthResult> {
+    const version = ++sessionVersion.current;
     try {
       const response = await fetch("/api/v1/auth/login", {
         method: "POST",
@@ -139,14 +127,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: message, fieldErrors };
       }
 
-      setUser(toAppUser((await response.json()) as UserResponse));
+      const nextUser = toAppUser((await response.json()) as UserResponse);
+      const preference = await getDisplayPreference();
+      if (version !== sessionVersion.current) return { success: false, error: "Sign-in was cancelled. Please try again." };
+      setSession({ user: nextUser, theme: preference.theme });
       return { success: true };
     } catch {
       return { success: false, error: "Unable to reach the authentication service." };
     }
   }
 
-  // Does NOT call setUser() on success: the server never sets a session
+  // Does NOT change the session on success: the server never sets a session
   // cookie for this request, since a new learner/contributor account is
   // always "pending" until an admin approves it.
   async function register(input: RegisterInput): Promise<RegisterResult> {
@@ -170,25 +161,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout(): Promise<void> {
+    const version = ++sessionVersion.current;
     try {
       await fetch("/api/v1/auth/logout", {
         method: "POST",
         credentials: "same-origin",
       });
     } finally {
-      setUser(null);
+      if (version === sessionVersion.current) setSession({ user: null, theme: "light" });
     }
   }
 
   async function refreshUser(): Promise<void> {
-    const response = await fetch('/api/v1/session', { cache: 'no-store', credentials: 'same-origin' });
-    if (response.ok) setUser(toAppUser(await response.json() as UserResponse));
-    else if (response.status === 401) setUser(null);
-    else throw new Error('Unable to refresh your account.');
+    const version = sessionVersion.current;
+    const response = await fetch("/api/v1/session", { cache: "no-store", credentials: "same-origin" });
+    if (response.ok) {
+      const nextUser = toAppUser(await response.json() as UserResponse);
+      if (nextUser.id === user?.id) {
+        if (version === sessionVersion.current) setSession(current => ({ ...current, user: nextUser }));
+      } else {
+        const preference = await getDisplayPreference();
+        if (version === sessionVersion.current) setSession({ user: nextUser, theme: preference.theme });
+      }
+    } else if (response.status === 401) {
+      if (version === sessionVersion.current) setSession({ user: null, theme: "light" });
+    } else throw new Error('Unable to refresh your account.');
+  }
+
+  async function saveTheme(nextTheme: DisplayPreferenceDto["theme"]): Promise<void> {
+    if (!user) throw new Error("Sign in to change your theme.");
+    const version = sessionVersion.current;
+    const preference = await updateDisplayPreference(nextTheme);
+    if (version === sessionVersion.current) {
+      setSession(current => current.user?.id === user.id ? { ...current, theme: preference.theme } : current);
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, isLoading, theme, saveTheme, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Check, X } from "lucide-react";
 
 import { Attachment } from "@/components/ui/Attachment";
@@ -19,16 +20,21 @@ const typeTabs: ResourceType[] = ["study_material", "practice_material", "book",
 
 export default function AdminApprovalsPage() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const { data: submissions, setData: setSubmissions, isLoading, error, refresh } = useDatabaseData(`admin-submissions:${user?.id ?? "anonymous"}`, listSubmissionsForReview, []);
   const [tab, setTab] = useState<TabKey>("all");
-  const [status, setStatus] = useState("pending");
+  const [status, setStatus] = useState<"all" | "pending" | "approved" | "rejected">(() => {
+    const nextStatus = searchParams.get("status");
+    return nextStatus === "approved" || nextStatus === "rejected" || nextStatus === "all" ? nextStatus : "pending";
+  });
   const [search, setSearch] = useState("");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const statusScope = status === "all" ? submissions : submissions.filter((row) => row.status === status);
   const visible = useMemo(() => submissions.filter(row => (tab === "all" || row.resourceType === tab) && (status === "all" || row.status === status) && `${row.title} ${row.contributor.name} ${row.courseCode}`.toLowerCase().includes(search.toLowerCase())), [submissions, tab, status, search]);
-  const tabs = [{ key: "all" as const, label: `All (${submissions.length})` }, ...typeTabs.map((type) => ({ key: type, label: `${resourceTypeLabel(type)} (${submissions.filter((submission) => submission.resourceType === type).length})` }))];
+  const tabs = [{ key: "all" as const, label: `All (${statusScope.length})` }, ...typeTabs.map((type) => ({ key: type, label: `${resourceTypeLabel(type)} (${statusScope.filter((submission) => submission.resourceType === type).length})` }))];
 
   function replace(updated: SubmissionDto) {
     setSubmissions((current) => current.map((submission) => submission.id === updated.id ? updated : submission));
@@ -50,8 +56,8 @@ export default function AdminApprovalsPage() {
 
   return <AppShell title="Material Approvals" allowedRoles={["admin"]}><div className="space-y-4">
     <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="page-kicker mb-2">Moderation / Content</p><h2 className="page-title">Content review</h2><p className="mt-2 text-sm text-slate-500">Inspect materials and placement before making a publication decision.</p></div><button onClick={refresh} className="action-secondary">Refresh queue</button></div>
-    <div className="grid grid-cols-3 gap-3">{["pending", "approved", "rejected"].map(value => <button key={value} onClick={() => setStatus(value)} className={`rounded-lg border bg-white p-4 text-left ${status === value ? "border-slate-600 ring-1 ring-slate-600" : "border-slate-200"}`}><span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{value}</span><strong className="mt-2 block text-2xl">{submissions.filter(row => row.status === value).length}</strong></button>)}</div>
-    <div className="flex flex-wrap gap-3"><input aria-label="Search submissions" placeholder="Search title, contributor or course..." value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm" /><select aria-label="Review status" value={status} onChange={event => setStatus(event.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 text-xs"><option value="all">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>
+    <div className="grid grid-cols-3 gap-3">{["pending", "approved", "rejected"].map(value => <button key={value} onClick={() => setStatus(value as "pending" | "approved" | "rejected")} className={`rounded-lg border bg-white p-4 text-left ${status === value ? "border-slate-600 ring-1 ring-slate-600" : "border-slate-200"}`}><span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">{value}</span><strong className="mt-2 block text-2xl">{submissions.filter(row => row.status === value).length}</strong></button>)}</div>
+    <div className="flex flex-wrap gap-3"><input aria-label="Search submissions" placeholder="Search title, contributor or course..." value={search} onChange={event => setSearch(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm" /><select aria-label="Review status" value={status} onChange={event => setStatus(event.target.value as "all" | "pending" | "approved" | "rejected")} className="rounded-lg border border-slate-200 bg-white px-3 text-xs"><option value="all">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>
     {(error || mutationError) && <p role="alert" className="text-sm text-rose-600">{mutationError ?? error}</p>}
     <div className="flex flex-wrap gap-2 border-b">{tabs.map((item) => <button key={item.key} onClick={() => setTab(item.key)} className={`border-b-2 px-3 py-2 text-sm ${tab === item.key ? "border-slate-800 text-slate-800" : "border-transparent text-slate-500"}`}>{item.label}</button>)}</div>
     <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm"><table className="w-full text-left text-sm" aria-busy={isLoading}><thead className="bg-slate-50 text-xs uppercase text-slate-400"><tr><th className="px-4 py-3">Title</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Contributor</th><th className="px-4 py-3">Course / Topic</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Submitted</th><th className="px-4 py-3 text-right">Action</th></tr></thead><tbody className="divide-y">

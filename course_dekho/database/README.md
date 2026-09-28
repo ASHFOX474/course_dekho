@@ -15,7 +15,7 @@ This directory is the canonical database definition for the PostgreSQL-backed AP
 | Concern | Database decision |
 |---|---|
 | Semester ownership/order | `semester.university_id` owns the semester; `(university_id, sequence_order)` is unique. A composite course foreign key prevents a course from pairing a semester with the wrong university. |
-| Teacher progress | Enrollment and progress point to `app_user`, not a student-only table. Triggers permit `student` and `teacher`, never `admin`. |
+| Learner-only tracking | Enrollment, topic progress, resource completion, continuation activity, and solved questions permit only `learner`. Migration `0017` removes legacy contributor tracking records and adds database role guards. Contributors retain bookmarks and browsing history. |
 | Bookmarks | One table has nullable real foreign keys to course, topic, and content. `num_nonnulls(...) = 1` and three partial unique indexes enforce exactly one target per user. |
 | Subtopics | `topic_subtopic` is an ordered, UUID-addressable, parent-scoped slug entity with archive state. |
 | Solved questions | `solved_question` references active published content; a trigger requires `resource_type = 'question'`. |

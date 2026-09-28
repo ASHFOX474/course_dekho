@@ -177,7 +177,7 @@ export default function LoginPage() {
             <br />
             Learning Companion
           </h1>
-          <p className="mb-8 max-w-sm text-sm text-white/60">
+          <p className="mb-8 max-w-sm text-sm text-white/80">
             For CSE students in Bangladesh — every roadmap, resource and past question, organized in one place.
           </p>
           <ul className="space-y-3">
@@ -192,7 +192,7 @@ export default function LoginPage() {
           </ul>
         </div>
 
-        <p className="text-xs text-white/30">© {new Date().getFullYear()} CourseDekho</p>
+        <p className="text-xs text-white/70">© {new Date().getFullYear()} CourseDekho</p>
       </div>
 
       {/* Right form panel */}

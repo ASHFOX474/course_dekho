@@ -17,7 +17,7 @@ import {
 } from "../repositories/workspace-repository.ts";
 import type { DatabaseExecutor } from "../db/executor.ts";
 
-const learnerRoles = ["learner", "contributor"] as const;
+const readerRoles = ["learner", "contributor"] as const;
 const allRoles = ["learner", "contributor", "admin"] as const;
 
 interface WorkspaceServiceDependencies {
@@ -50,12 +50,12 @@ export class WorkspaceService {
   }
 
   async getLearning(actor: AuthenticatedUser) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, ["learner"]);
     return this.repository().getLearning(actor.id);
   }
 
   async listBookmarks(actor: AuthenticatedUser) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, readerRoles);
     return this.repository().listBookmarks(actor.id);
   }
 
@@ -63,21 +63,21 @@ export class WorkspaceService {
     actor: AuthenticatedUser,
     input: { targetType: BookmarkTargetType; targetId: string }
   ) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, readerRoles);
     const bookmark = await this.repository().createBookmark(actor.id, input.targetType, input.targetId);
     if (!bookmark) throw new NotFoundError("Bookmark target not found or unavailable.");
     return bookmark;
   }
 
   async deleteBookmark(actor: AuthenticatedUser, bookmarkId: string): Promise<void> {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, readerRoles);
     if (!(await this.repository().deleteBookmark(actor.id, bookmarkId))) {
       throw new NotFoundError("Bookmark not found.");
     }
   }
 
   async createEnrollment(actor: AuthenticatedUser, courseId: string) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, ["learner"]);
     const enrollment = await this.repository().createEnrollment(actor.id, courseId);
     if (!enrollment) throw new NotFoundError("Active course not found.");
     return enrollment;
@@ -112,12 +112,12 @@ export class WorkspaceService {
   }
 
   async listResourceCompletions(actor: AuthenticatedUser, topicId: string) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, ["learner"]);
     return this.repository().listResourceCompletions(actor.id, topicId);
   }
 
   async setResourceCompletion(actor: AuthenticatedUser, resourceId: string, completed: boolean) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, ["learner"]);
     if (!(await this.repository().setResourceCompletion(actor.id, resourceId, completed, this.now()))) {
       throw new ConflictError("Resource completion requires an approved enrollment and an approved active resource.");
     }
@@ -125,14 +125,14 @@ export class WorkspaceService {
   }
 
   async recordFolderActivity(actor: AuthenticatedUser, courseId: string, topicId: string | null): Promise<void> {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, ["learner"]);
     if (!(await this.repository().recordFolderActivity(actor.id, courseId, topicId, this.now()))) {
       throw new ConflictError("Folder activity requires an approved active enrollment.");
     }
   }
 
   async getContinueLearning(actor: AuthenticatedUser) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, ["learner"]);
     return this.repository().getContinueLearning(actor.id);
   }
 
@@ -150,24 +150,24 @@ export class WorkspaceService {
   }
 
   async listAccessHistory(actor: AuthenticatedUser) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, readerRoles);
     return this.repository().listAccessHistory(actor.id);
   }
 
   async recordAccess(actor: AuthenticatedUser, resourceId: string): Promise<void> {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, readerRoles);
     if (!(await this.repository().recordAccess(actor.id, resourceId))) {
       throw new NotFoundError("Approved active resource not found.");
     }
   }
 
   async listSolvedQuestions(actor: AuthenticatedUser) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, ["learner"]);
     return this.repository().listSolvedQuestions(actor.id);
   }
 
   async markSolved(actor: AuthenticatedUser, resourceId: string) {
-    requireRole(actor, learnerRoles);
+    requireRole(actor, ["learner"]);
     if (!(await this.repository().markSolved(actor.id, resourceId))) {
       throw new NotFoundError("Approved active question not found.");
     }

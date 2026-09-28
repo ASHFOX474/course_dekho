@@ -329,4 +329,8 @@ export interface AdminStatsDto {
   courseCount: number;
   publishedResourceCount: number;
   submissionCount: number;
+  pendingSubmissionCount: number;
+  pendingUserCount: number;
+  pendingEnrollmentCount: number;
+  openSupportCount: number;
 }

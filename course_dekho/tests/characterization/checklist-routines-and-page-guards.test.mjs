@@ -16,10 +16,10 @@ test('every private page performs a server-side session and role check', async (
     ['app/admin/user-approvals/page.tsx', "['admin']"],
     ['app/contributor/courses/page.tsx', "['contributor']"],
     ['app/contributor/submissions/page.tsx', "['contributor']"],
-    ['app/progress/page.tsx', "['learner', 'contributor']"],
+    ['app/progress/page.tsx', "['learner']"],
     ['app/bookmarks/page.tsx', "['learner', 'contributor']"],
     ['app/access-history/page.tsx', "['learner', 'contributor']"],
-    ['app/solved-questions/page.tsx', "['learner', 'contributor']"],
+    ['app/solved-questions/page.tsx', "['learner']"],
   ]);
   const signedInPages = [
     'app/dashboard/page.tsx',

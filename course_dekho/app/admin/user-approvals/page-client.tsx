@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Check, UserX, X } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -28,7 +29,8 @@ type Tab = "pending" | "all";
 
 export default function AdminUserApprovalsPage() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<Tab>("pending");
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => (searchParams.get("tab") === "pending" ? "pending" : "all"));
   const [search, setSearch] = useState("");
   const [recovering, setRecovering] = useState<{ id: string; name: string } | null>(null);
 
@@ -127,20 +129,20 @@ export default function AdminUserApprovalsPage() {
         <input aria-label="Search users" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, username or email..." className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm" />
         <div className="flex flex-wrap gap-2 border-b">
           <button
-            onClick={() => setTab("pending")}
-            className={`border-b-2 px-3 py-2 text-sm ${
-              tab === "pending" ? "border-slate-800 text-slate-800" : "border-transparent text-slate-500"
-            }`}
-          >
-            Pending Approval ({pending.length})
-          </button>
-          <button
             onClick={() => setTab("all")}
             className={`border-b-2 px-3 py-2 text-sm ${
               tab === "all" ? "border-slate-800 text-slate-800" : "border-transparent text-slate-500"
             }`}
           >
             All Users ({activeCount} active{allUsers.length !== activeCount ? `, ${allUsers.length} total` : ""})
+          </button>
+          <button
+            onClick={() => setTab("pending")}
+            className={`border-b-2 px-3 py-2 text-sm ${
+              tab === "pending" ? "border-rose-400 text-rose-700" : "border-transparent text-slate-500"
+            }`}
+          >
+            Pending Approval ({pending.length})
           </button>
         </div>
 

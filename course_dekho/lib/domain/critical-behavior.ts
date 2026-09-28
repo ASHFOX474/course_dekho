@@ -53,7 +53,13 @@ const learnerPermissions: readonly Permission[] = [
 
 export const rolePermissions: Readonly<Record<Role, readonly Permission[]>> = {
   learner: learnerPermissions,
-  contributor: [...learnerPermissions, "submit_content", "view_own_submissions"],
+  contributor: [
+    "browse_approved_content",
+    "bookmark_content",
+    "view_learning_history",
+    "submit_content",
+    "view_own_submissions",
+  ],
   admin: [
     "browse_approved_content",
     "approve_submission",
