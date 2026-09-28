@@ -1,10 +1,19 @@
 "use client";
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { ADMIN_ATTENTION_CHANGED } from '@/lib/client/admin-attention';
 import { useDatabaseData } from '@/lib/client/use-database-data';
 import { getSupportThread, replySupport } from '@/lib/client/support-api';
 
-export function SupportConversation({ id, token, admin = false, onChange }: { id: string; token?: string; admin?: boolean; onChange?: () => void }) {
+export function SupportConversation({ id, token, admin = false, onChange, onReady }: { id: string; token?: string; admin?: boolean; onChange?: () => void; onReady?: () => void }) {
   const thread = useDatabaseData(`support:${id}:${token ?? 'session'}`, signal => getSupportThread(id, token, signal), null);
+  const refreshThread = thread.refresh;
+  useEffect(() => {
+    if (!thread.isLoading) onReady?.();
+  }, [thread.isLoading, onReady]);
+  useEffect(() => {
+    window.addEventListener(ADMIN_ATTENTION_CHANGED, refreshThread);
+    return () => window.removeEventListener(ADMIN_ATTENTION_CHANGED, refreshThread);
+  }, [refreshThread]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');

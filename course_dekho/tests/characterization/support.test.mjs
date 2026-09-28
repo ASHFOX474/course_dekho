@@ -54,3 +54,32 @@ test('initial message failure rolls back the ticket and releases the connection'
   assert.deepEqual(calls.slice(-2), ['ROLLBACK', 'release']);
   assert.ok(!calls.includes('COMMIT'));
 });
+
+test('bulk resolution rejects guests, learners, contributors, and untrusted origins', async () => {
+  const service = new Proxy({}, { get() { return () => assert.fail('Unexpected service call'); } });
+  for (const role of ['learner', 'contributor', 'admin']) {
+    const handler = createSupportHandler({ getSessionUser: async () => ({ ...user, role }) }, service);
+    assert.equal((await handler(req({}), 'resolve-all')).status, 401);
+    assert.equal((await handler(req({}, 'https://untrusted.test', true), 'resolve-all')).status, 403);
+    if (role !== 'admin') assert.equal((await handler(req({}, 'http://localhost', true), 'resolve-all')).status, 403);
+    else assert.equal((await handler(req(undefined, 'http://localhost', true), 'resolve-all')).status, 405);
+  }
+});
+
+test('bulk resolution is admin-only, validates input, and atomically updates open tickets beyond the list limit', async () => {
+  const queries = [];
+  const service = new SupportService({ query: async query => { queries.push(query); return { rowCount: 251 }; } });
+  for (const role of ['learner', 'contributor']) {
+    await assert.rejects(service.resolveAll({ ...user, role }, {}), { status: 403 });
+  }
+  const admin = { ...user, role: 'admin' };
+  await assert.rejects(service.resolveAll(admin, { status: 'open' }), { status: 400 });
+  assert.equal(queries.length, 0);
+  const handler = createSupportHandler({ getSessionUser: async () => admin }, service);
+  const response = await handler(req({}, 'http://localhost', true), 'resolve-all');
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { data: { resolvedCount: 251 } });
+  assert.equal(queries.length, 1);
+  assert.match(queries[0], /SET status='resolved',updated_at=clock_timestamp\(\) WHERE status='open'/);
+  assert.doesNotMatch(queries[0], /LIMIT|DELETE|support_message/i);
+});

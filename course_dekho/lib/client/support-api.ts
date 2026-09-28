@@ -12,6 +12,7 @@ async function request<T>(path: string, body?: unknown, token?: string, signal?:
   return result.data as T;
 }
 export const listSupport = (signal?: AbortSignal) => request<SupportTicket[]>('', undefined, undefined, signal);
+export const resolveAllSupport = () => request<{ resolvedCount: number }>('/resolve-all', {});
 export const getSupportThread = (id: string, token?: string, signal?: AbortSignal) => request<SupportThread>(`/${encodeURIComponent(id)}`, undefined, token, signal);
 export const createSupport = (input: { category: 'problem' | 'suggestion'; subject: string; message: string }) => request<{ id: string }>('', input);
 export const requestRecovery = (input: { name: string; email: string; identifier: string; message: string }) => request<{ id: string; accessToken: string }>('/recovery', input);

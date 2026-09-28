@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
+import { useEffect } from "react";
+import { ADMIN_ATTENTION_CHANGED } from "@/lib/client/admin-attention";
 import { usePathname } from "next/navigation";
-import { BookOpen, Bookmark, History, LayoutDashboard, LogOut, Settings, ShieldCheck, TrendingUp, Upload, User, Users, Layers, MessageSquare, ClipboardCheck, type LucideIcon } from "lucide-react";
+import { BookOpen, Bookmark, LayoutDashboard, Settings, ShieldCheck, TrendingUp, Upload, Users, Layers, MessageSquare, ClipboardCheck, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Logo } from "@/components/ui/Logo";
 import { useDatabaseData } from "@/lib/client/use-database-data";
@@ -14,7 +16,6 @@ type Item = { label: string; href: string; icon: LucideIcon };
 const contributorDiscovery: Item[] = [
   { label: "Explore courses", href: "/courses", icon: BookOpen },
   { label: "Bookmark", href: "/bookmarks", icon: Bookmark },
-  { label: "History", href: "/access-history", icon: History },
   { label: "Help & suggestions", href: "/support", icon: MessageSquare },
 ];
 const learnerNavigation: Item[] = [
@@ -32,30 +33,34 @@ const administration: Item[] = [
   { label: "Academic management", href: "/admin/courses", icon: Layers },
   { label: "Published catalog", href: "/courses", icon: BookOpen },
   { label: "Support inbox", href: "/admin/support", icon: MessageSquare },
-  { label: "Settings", href: "/settings", icon: Settings },
 ];
 const contribution: Item[] = [
   { label: "Studio overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "My submissions", href: "/contributor/submissions", icon: Upload },
   { label: "Course workspace", href: "/contributor/courses", icon: Layers },
-  { label: "Settings", href: "/settings", icon: Settings },
 ];
 export function Sidebar({ onNavigate, courseNavigation }: { onNavigate?: () => void; courseNavigation?: CourseNavigation }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const admin = user?.role === "admin";
   const contributor = user?.role === "contributor";
   const submissions = useDatabaseData("admin-sidebar-submissions", admin ? listSubmissionsForReview : async () => [], []);
   const pendingUsers = useDatabaseData("admin-sidebar-pending-users", admin ? listPendingUsers : async () => [], []);
   const enrollments = useDatabaseData("admin-sidebar-enrollments", admin ? listEnrollmentRequests : async () => [], []);
   const supportRequests = useDatabaseData("admin-sidebar-support", admin ? listSupport : async () => [], []);
+  const refreshSupport = supportRequests.refresh;
+  useEffect(() => {
+    if (!admin) return;
+    window.addEventListener(ADMIN_ATTENTION_CHANGED, refreshSupport);
+    return () => window.removeEventListener(ADMIN_ATTENTION_CHANGED, refreshSupport);
+  }, [admin, refreshSupport]);
   if (!user) return null;
   const items = admin ? administration : contributor ? contribution : learnerNavigation;
   const alertMap = admin ? {
     "/admin/approvals": submissions.data.some((row) => row.status === "pending"),
     "/admin/user-approvals": pendingUsers.data.length > 0,
     "/admin/enrollments": enrollments.data.some((row) => row.status === "pending"),
-    "/admin/support": supportRequests.data.some((ticket) => ticket.status === "open" || ticket.category === "recovery"),
+    "/admin/support": supportRequests.data.some((ticket) => ticket.status === "open"),
   } : {};
   function links(rows: Item[]) {
     return rows.map(({ icon: Icon, ...item }) => {
@@ -81,6 +86,6 @@ export function Sidebar({ onNavigate, courseNavigation }: { onNavigate?: () => v
       <p className="nav-label">{admin ? "Platform" : contributor ? "Create & contribute" : "Discover"}</p>{links(items)}
       {contributor && <><p className="nav-label mt-7">Discover</p>{links(contributorDiscovery)}</>}
     </nav>
-    {user.role === "learner" ? <div className="learner-account-navigation space-y-1 border-t border-current/10 p-3"><Link href="/profile" onClick={onNavigate} aria-label="Open your profile" className="learner-profile-link flex items-center gap-3 rounded-lg p-2"><span className="workspace-avatar">{user.avatarInitials}</span><span className="min-w-0 text-left"><span className="block truncate text-xs font-semibold">{user.name}</span><span className="block text-[10px] capitalize opacity-60">{user.role}</span></span></Link>{links([{ label: "Preferences", href: "/settings", icon: Settings }])}</div> : !contributor && <div className="space-y-1 border-t border-current/10 p-3">{links([{ label: "Your profile", href: "/profile", icon: User }, { label: "Preferences", href: "/settings", icon: Settings }])}<button type="button" aria-label="Sign out" onClick={() => void logout()} className="workspace-nav-link w-full"><LogOut size={18} />Sign out</button></div>}
+    {user.role === "learner" ? <div className="learner-account-navigation space-y-1 border-t border-current/10 p-3"><Link href="/profile" onClick={onNavigate} aria-label="Open your profile" className="learner-profile-link flex items-center gap-3 rounded-lg p-2"><span className="workspace-avatar">{user.avatarInitials}</span><span className="min-w-0 text-left"><span className="block truncate text-xs font-semibold">{user.name}</span><span className="block text-[10px] capitalize opacity-60">{user.role}</span></span></Link>{links([{ label: "Preferences", href: "/settings", icon: Settings }])}</div> : admin && <div className="space-y-1 border-t border-current/10 p-3">{links([{ label: "Settings", href: "/settings", icon: Settings }])}</div>}
   </aside>;
 }

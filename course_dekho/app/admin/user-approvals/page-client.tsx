@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, UserX, X } from "lucide-react";
 
@@ -18,6 +18,7 @@ import {
 import { useDatabaseData } from "@/lib/client/use-database-data";
 import { formatDate } from "@/lib/utils";
 import { RecoveryLinkForm } from '@/components/account/RecoveryLinkForm';
+import { focusSection } from '@/lib/client/focus-section';
 
 const roleLabel: Record<string, string> = {
   learner: "Learner",
@@ -33,6 +34,10 @@ export default function AdminUserApprovalsPage() {
   const [tab, setTab] = useState<Tab>(() => (searchParams.get("tab") === "pending" ? "pending" : "all"));
   const [search, setSearch] = useState("");
   const [recovering, setRecovering] = useState<{ id: string; name: string } | null>(null);
+  const recoveryRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (recovering) focusSection(recoveryRef.current);
+  }, [recovering]);
 
   const {
     data: pending,
@@ -152,7 +157,7 @@ export default function AdminUserApprovalsPage() {
           </p>
         )}
 
-        {recovering && <RecoveryLinkForm key={recovering.id} userId={recovering.id} name={recovering.name} onClose={() => setRecovering(null)} />}
+        {recovering && <div ref={recoveryRef} tabIndex={-1} className="scroll-mt-4" aria-label="Account recovery"><RecoveryLinkForm key={recovering.id} userId={recovering.id} name={recovering.name} onClose={() => setRecovering(null)} /></div>}
         {tab === "pending" ? (
           <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
             <table className="w-full text-left text-sm" aria-busy={pendingLoading}>

@@ -51,6 +51,14 @@ export class SupportService {
     return (await this.pool.query<SupportTicket>({ text: `${ticketSelect} WHERE ($1::boolean OR u.public_id=$2::uuid) ORDER BY t.updated_at DESC,t.id DESC LIMIT 200`, values: [actor.role === 'admin', actor.id] })).rows;
   }
 
+  async resolveAll(actor: AuthenticatedUser, value: unknown) {
+    requireRole(actor, ['admin']);
+    accountForm(value, []);
+    // A single statement resolves the entire inbox atomically, beyond the list's 200-row limit.
+    const result = await this.pool.query("UPDATE coursedekho.support_ticket SET status='resolved',updated_at=clock_timestamp() WHERE status='open'");
+    return { resolvedCount: result.rowCount ?? 0 };
+  }
+
   private async authorize(db: DatabaseExecutor, id: string, actor: AuthenticatedUser | null, token?: string, lock = false) {
     if (actor) requireRole(actor, ['learner', 'contributor', 'admin']);
     if (!actor && (!token || !/^[A-Za-z0-9_-]{43}$/.test(token))) throw missing();
