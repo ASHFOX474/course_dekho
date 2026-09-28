@@ -265,13 +265,17 @@ WHERE course.public_id = '00000000-0000-4000-8000-000000000401'
 ON CONFLICT DO NOTHING;
 
 INSERT INTO coursedekho.enrollment (
-    public_id, user_id, course_id, status, enrolled_at, status_changed_at
+    public_id, user_id, course_id, status, enrolled_at, status_changed_at,
+    review_status, requested_at, reviewed_at
 )
 SELECT
     '00000000-0000-4000-8000-000000001001',
     student.id,
     course.id,
     'active'::coursedekho.enrollment_status,
+    '2026-08-01T08:00:00Z'::TIMESTAMPTZ,
+    '2026-08-01T08:00:00Z'::TIMESTAMPTZ,
+    'approved'::coursedekho.enrollment_review_status,
     '2026-08-01T08:00:00Z'::TIMESTAMPTZ,
     '2026-08-01T08:00:00Z'::TIMESTAMPTZ
 FROM coursedekho.app_user AS student
@@ -281,29 +285,12 @@ WHERE student.public_id = '00000000-0000-4000-8000-000000000101'
 ON CONFLICT (public_id) DO UPDATE
 SET
     status = EXCLUDED.status,
-    status_changed_at = EXCLUDED.status_changed_at;
-
-INSERT INTO coursedekho.topic_progress (
-    public_id, user_id, topic_id, progress_percent, is_completed, completed_at, last_accessed_at
-)
-SELECT
-    '00000000-0000-4000-8000-000000001101',
-    student.id,
-    topic.id,
-    60,
-    FALSE,
-    NULL,
-    '2026-08-30T12:00:00Z'::TIMESTAMPTZ
-FROM coursedekho.app_user AS student
-CROSS JOIN coursedekho.topic AS topic
-WHERE student.public_id = '00000000-0000-4000-8000-000000000101'
-  AND topic.public_id = '00000000-0000-4000-8000-000000000505'
-ON CONFLICT (public_id) DO UPDATE
-SET
-    progress_percent = EXCLUDED.progress_percent,
-    is_completed = EXCLUDED.is_completed,
-    completed_at = EXCLUDED.completed_at,
-    last_accessed_at = EXCLUDED.last_accessed_at;
+    status_changed_at = EXCLUDED.status_changed_at,
+    review_status = EXCLUDED.review_status,
+    requested_at = EXCLUDED.requested_at,
+    reviewed_at = EXCLUDED.reviewed_at,
+    reviewed_by_user_id = NULL,
+    rejection_reason = NULL;
 
 INSERT INTO coursedekho.content_submission (
     public_id,
@@ -468,6 +455,22 @@ FROM coursedekho.content_revision AS revision
 WHERE content.public_id = '00000000-0000-4000-8000-000000000601'
   AND revision.public_id = '00000000-0000-4000-8000-000000000801'
   AND revision.content_id = content.id;
+
+INSERT INTO coursedekho.resource_completion (
+    public_id, user_id, content_id, completed_at
+)
+SELECT
+    '00000000-0000-4000-8000-000000001101',
+    student.id,
+    content.id,
+    '2026-08-30T12:00:00Z'::TIMESTAMPTZ
+FROM coursedekho.app_user AS student
+CROSS JOIN coursedekho.content AS content
+WHERE student.public_id = '00000000-0000-4000-8000-000000000101'
+  AND content.public_id = '00000000-0000-4000-8000-000000000601'
+ON CONFLICT (user_id, content_id) DO UPDATE
+SET completed_at = EXCLUDED.completed_at,
+    updated_at = EXCLUDED.completed_at;
 
 
 INSERT INTO coursedekho.question_detail (content_id, question_text, difficulty, points)

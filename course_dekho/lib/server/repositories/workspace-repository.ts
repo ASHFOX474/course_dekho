@@ -13,12 +13,20 @@ import {
   queryCreateSubmission,
   queryDeleteBookmark,
   queryLearningCourses,
+  queryContinueLearning,
+  queryDisplayPreference,
+  queryEnrollmentRequestsByUser,
+  queryEnrollmentRequestsForAdmin,
+  queryRecordFolderActivity,
+  queryResourceCompletions,
+  queryReviewEnrollment,
+  querySetResourceCompletion,
+  queryUpdateDisplayPreference,
   queryMarkSolved,
   queryRecordAccess,
   queryRejectSubmission,
   querySolvedQuestions,
   queryTopicProgress,
-  queryUpdateProgress,
   queryUserProfile,
 } from "../db/queries/workspace-queries.ts";
 import {
@@ -30,6 +38,7 @@ import {
   adminStatsRowToDomain,
   bookmarkRowToDomain,
   learningCourseRowToDomain,
+  enrollmentRequestRowToDomain,
   solvedQuestionRowToDomain,
   submissionRowToDomain,
   topicProgressRowToDomain,
@@ -41,6 +50,9 @@ import type {
   AdminStats,
   BookmarkTargetType,
   BookmarkView,
+  ContinueLearningTarget,
+  DisplayTheme,
+  EnrollmentRequest,
   LearningOverview,
   ResourceType,
   SolvedQuestionView,
@@ -56,8 +68,16 @@ export interface WorkspaceRepository {
   listBookmarks(userId: string): Promise<BookmarkView[]>;
   createBookmark(userId: string, targetType: BookmarkTargetType, targetId: string): Promise<BookmarkView | null>;
   deleteBookmark(userId: string, bookmarkId: string): Promise<boolean>;
-  createEnrollment(userId: string, courseId: string): Promise<string | null>;
-  updateProgress(userId: string, topicId: string, progressPercent: number, now: Date): Promise<boolean>;
+  createEnrollment(userId: string, courseId: string): Promise<EnrollmentRequest | null>;
+  listEnrollmentRequests(userId: string): Promise<EnrollmentRequest[]>;
+  listEnrollmentRequestsForAdmin(): Promise<EnrollmentRequest[]>;
+  reviewEnrollment(input: { enrollmentId: string; reviewerId: string; decision: "approved" | "rejected"; reason: string | null; reviewedAt: Date }): Promise<boolean>;
+  listResourceCompletions(userId: string, topicId: string): Promise<string[]>;
+  setResourceCompletion(userId: string, resourceId: string, completed: boolean, now: Date): Promise<boolean>;
+  recordFolderActivity(userId: string, courseId: string, topicId: string | null, openedAt: Date): Promise<boolean>;
+  getContinueLearning(userId: string): Promise<ContinueLearningTarget>;
+  getDisplayPreference(userId: string): Promise<DisplayTheme>;
+  updateDisplayPreference(userId: string, theme: DisplayTheme, now: Date): Promise<boolean>;
   listAccessHistory(userId: string): Promise<AccessHistoryView[]>;
   recordAccess(userId: string, resourceId: string): Promise<boolean>;
   listSolvedQuestions(userId: string): Promise<SolvedQuestionView[]>;
@@ -109,13 +129,15 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
   }
 
   async getLearning(userId: string): Promise<LearningOverview> {
-    const [courses, topics] = await Promise.all([
+    const [courses, topics, enrollmentRequests] = await Promise.all([
       queryLearningCourses(this.executor, userId),
       queryTopicProgress(this.executor, userId),
+      queryEnrollmentRequestsByUser(this.executor, userId),
     ]);
     return {
       courses: courses.map(learningCourseRowToDomain),
       topics: topics.map(topicProgressRowToDomain),
+      enrollmentRequests: enrollmentRequests.map(enrollmentRequestRowToDomain),
     };
   }
 
@@ -139,17 +161,52 @@ export class PostgresWorkspaceRepository implements WorkspaceRepository {
     return queryDeleteBookmark(this.executor, userId, bookmarkId);
   }
 
-  createEnrollment(userId: string, courseId: string): Promise<string | null> {
-    return queryCreateEnrollment(this.executor, userId, courseId);
+  async createEnrollment(userId: string, courseId: string): Promise<EnrollmentRequest | null> {
+    await queryCreateEnrollment(this.executor, userId, courseId);
+    return (await this.listEnrollmentRequests(userId)).find(request => request.courseId === courseId) ?? null;
   }
 
-  updateProgress(
-    userId: string,
-    topicId: string,
-    progressPercent: number,
-    now: Date
-  ): Promise<boolean> {
-    return queryUpdateProgress(this.executor, userId, topicId, progressPercent, now);
+  async listEnrollmentRequests(userId: string): Promise<EnrollmentRequest[]> {
+    return (await queryEnrollmentRequestsByUser(this.executor, userId)).map(enrollmentRequestRowToDomain);
+  }
+
+  async listEnrollmentRequestsForAdmin(): Promise<EnrollmentRequest[]> {
+    return (await queryEnrollmentRequestsForAdmin(this.executor)).map(enrollmentRequestRowToDomain);
+  }
+
+  reviewEnrollment(input: { enrollmentId: string; reviewerId: string; decision: "approved" | "rejected"; reason: string | null; reviewedAt: Date }): Promise<boolean> {
+    return queryReviewEnrollment(this.executor, input);
+  }
+
+  async listResourceCompletions(userId: string, topicId: string): Promise<string[]> {
+    return (await queryResourceCompletions(this.executor, userId, topicId)).map(row => row.content_public_id);
+  }
+
+  setResourceCompletion(userId: string, resourceId: string, completed: boolean, now: Date): Promise<boolean> {
+    return querySetResourceCompletion(this.executor, userId, resourceId, completed, now);
+  }
+
+  recordFolderActivity(userId: string, courseId: string, topicId: string | null, openedAt: Date): Promise<boolean> {
+    return queryRecordFolderActivity(this.executor, userId, courseId, topicId, openedAt);
+  }
+
+  async getContinueLearning(userId: string): Promise<ContinueLearningTarget> {
+    const row = await queryContinueLearning(this.executor, userId);
+    const courseId = row.course_public_id;
+    const topicId = row.topic_public_id;
+    return {
+      courseId,
+      topicId,
+      href: topicId && courseId ? `/courses/${courseId}/topics/${topicId}` : courseId ? `/courses/${courseId}` : "/courses",
+    };
+  }
+
+  async getDisplayPreference(userId: string): Promise<DisplayTheme> {
+    return (await queryDisplayPreference(this.executor, userId)).theme;
+  }
+
+  updateDisplayPreference(userId: string, theme: DisplayTheme, now: Date): Promise<boolean> {
+    return queryUpdateDisplayPreference(this.executor, userId, theme, now);
   }
 
   async listAccessHistory(userId: string): Promise<AccessHistoryView[]> {

@@ -123,3 +123,20 @@ test('learning courses use the progress function without duplicate aggregation j
   assert.doesNotMatch(learningQuery, /JOIN coursedekho\.topic_progress\b/);
   assert.doesNotMatch(learningQuery, /GROUP BY/);
 });
+
+test('learning topics include only resource-touched topics with derived progress', async () => {
+  const queries = await source('lib/server/db/queries/workspace-queries.ts');
+  const start = queries.indexOf('export async function queryTopicProgress');
+  const end = queries.indexOf('const bookmarkProjectionSql');
+  const topicQuery = queries.slice(start, end);
+
+  assert.match(topicQuery, /workspace-topic-progress-v2/);
+  assert.match(topicQuery, /FROM coursedekho\.enrollment AS enrollment/);
+  assert.match(topicQuery, /JOIN coursedekho\.topic AS topic ON topic\.course_id = course\.id/);
+  assert.match(topicQuery, /JOIN coursedekho\.resource_completion AS completion/);
+  assert.match(topicQuery, /coursedekho\.calculate_topic_progress\(enrollment\.user_id, topic\.id\)/);
+  assert.match(topicQuery, /content\.resource_type IN \('tutorial', 'question', 'leetcode_problem'\)/);
+  assert.doesNotMatch(topicQuery, /coursedekho\.topic_progress/);
+  assert.match(topicQuery, /enrollment\.status IN \('active', 'completed'\)/);
+  assert.match(topicQuery, /topic\.sequence_order, topic\.id/);
+});

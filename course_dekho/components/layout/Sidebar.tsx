@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Bookmark, CheckCircle2, History, LayoutDashboard, LogOut, Settings, ShieldCheck, TrendingUp, Upload, User, Users, Layers, ArrowUpRight, MessageSquare, type LucideIcon } from "lucide-react";
+import { BookOpen, Bookmark, CheckCircle2, History, LayoutDashboard, LogOut, Settings, ShieldCheck, TrendingUp, Upload, User, Users, Layers, ArrowUpRight, MessageSquare, ClipboardCheck, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
@@ -17,10 +17,18 @@ const learning: Item[] = [
   { label: "Solved questions", href: "/solved-questions", icon: CheckCircle2 },
   { label: "Help & suggestions", href: "/support", icon: MessageSquare },
 ];
+const learnerNavigation: Item[] = [
+  { label: "My learning", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Explore courses", href: "/courses", icon: BookOpen },
+  { label: "Bookmark", href: "/bookmarks", icon: Bookmark },
+  { label: "My progress", href: "/progress", icon: TrendingUp },
+  { label: "Help & suggestions", href: "/support", icon: MessageSquare },
+];
 const administration: Item[] = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Content review", href: "/admin/approvals", icon: ShieldCheck },
   { label: "User directory", href: "/admin/user-approvals", icon: Users },
+  { label: "Enrollment requests", href: "/admin/enrollments", icon: ClipboardCheck },
   { label: "Academic management", href: "/admin/courses", icon: Layers },
   { label: "Published catalog", href: "/courses", icon: BookOpen },
   { label: "Support inbox", href: "/admin/support", icon: MessageSquare },
@@ -36,7 +44,7 @@ export function Sidebar({ onNavigate, courseNavigation }: { onNavigate?: () => v
   if (!user) return null;
   const admin = user.role === "admin";
   const contributor = user.role === "contributor";
-  const items = admin ? administration : contributor ? contribution : learning;
+  const items = admin ? administration : contributor ? contribution : learnerNavigation;
   function links(rows: Item[]) {
     return rows.map(({ icon: Icon, ...item }) => {
       const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -47,7 +55,7 @@ export function Sidebar({ onNavigate, courseNavigation }: { onNavigate?: () => v
     <Link href="/dashboard" onClick={onNavigate} className="block px-6 pt-7 pb-5"><Logo variant={admin || contributor ? "dark" : "light"} /></Link>
     <div className="mx-6 mb-8 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.2em] opacity-60"><span className="h-1 w-5 bg-current" />{admin ? "Administration" : contributor ? "Contributor studio" : "Your learning space"}</div>
     <nav aria-label="Main navigation" className="flex-1 space-y-1 overflow-y-auto px-3">
-      {courseNavigation && <div className="mb-6">
+      {courseNavigation && <div className="course-navigation mb-6">
         <p className="nav-label">This course</p>
         {courseSections.map(section => <button key={section.id} type="button"
           onClick={() => { onNavigate?.(); courseNavigation.onSelect(section.id); }}
@@ -61,6 +69,6 @@ export function Sidebar({ onNavigate, courseNavigation }: { onNavigate?: () => v
       {contributor && <><p className="nav-label mt-7">Your learning</p>{links(learning.filter(item => item.href !== "/dashboard"))}</>}
     </nav>
     {contributor && <Link href="/contributor/submissions" onClick={onNavigate} className="studio-note mx-4 my-5 block rounded-xl border border-white/15 bg-white/5 p-4"><Upload size={20} /><p className="mt-3 text-sm font-semibold">Share what you know</p><p className="mt-1 text-xs leading-relaxed opacity-60">Turn your notes into someone&apos;s next breakthrough.</p><span className="mt-3 inline-flex items-center gap-2 text-xs">Open submissions <ArrowUpRight size={14} /></span></Link>}
-    <div className="space-y-1 border-t border-current/10 p-3">{links([{ label: "Your profile", href: "/profile", icon: User }, { label: "Preferences", href: "/settings", icon: Settings }])}<button type="button" aria-label="Sign out" onClick={() => void logout()} className="workspace-nav-link w-full"><LogOut size={18} />Sign out</button></div>
+    {user.role === "learner" ? <div className="learner-account-navigation space-y-1 border-t border-current/10 p-3"><Link href="/profile" onClick={onNavigate} aria-label="Open your profile" className="learner-profile-link flex items-center gap-3 rounded-lg p-2"><span className="workspace-avatar">{user.avatarInitials}</span><span className="min-w-0 text-left"><span className="block truncate text-xs font-semibold">{user.name}</span><span className="block text-[10px] capitalize opacity-60">{user.role}</span></span></Link>{links([{ label: "Preferences", href: "/settings", icon: Settings }])}</div> : <div className="space-y-1 border-t border-current/10 p-3">{links([{ label: "Your profile", href: "/profile", icon: User }, { label: "Preferences", href: "/settings", icon: Settings }])}<button type="button" aria-label="Sign out" onClick={() => void logout()} className="workspace-nav-link w-full"><LogOut size={18} />Sign out</button></div>}
   </aside>;
 }

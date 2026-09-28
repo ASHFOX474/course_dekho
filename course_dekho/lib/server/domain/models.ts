@@ -21,6 +21,12 @@ export type SubmissionStatus = (typeof submissionStatuses)[number];
 export const enrollmentStatuses = ["active", "completed", "dropped"] as const;
 export type EnrollmentStatus = (typeof enrollmentStatuses)[number];
 
+export const enrollmentReviewStatuses = ["pending", "approved", "rejected"] as const;
+export type EnrollmentReviewStatus = (typeof enrollmentReviewStatuses)[number];
+
+export const displayThemes = ["light", "dark"] as const;
+export type DisplayTheme = (typeof displayThemes)[number];
+
 export type PublicId = string;
 
 export interface AuthenticatedUser {
@@ -189,6 +195,20 @@ export interface Enrollment {
   enrolledAt: Date;
 }
 
+export interface EnrollmentRequest {
+  id: PublicId;
+  user: Contributor;
+  userEmail: string;
+  courseId: PublicId;
+  courseCode: string;
+  courseName: string;
+  status: EnrollmentReviewStatus;
+  requestedAt: Date;
+  reviewedBy: Contributor | null;
+  reviewedAt: Date | null;
+  rejectionReason: string | null;
+}
+
 export type BookmarkTargetType = "course" | "topic" | "resource";
 
 export interface UserProfile {
@@ -224,6 +244,13 @@ export interface TopicProgressView {
 export interface LearningOverview {
   courses: LearningCourse[];
   topics: TopicProgressView[];
+  enrollmentRequests: EnrollmentRequest[];
+}
+
+export interface ContinueLearningTarget {
+  href: string;
+  courseId: PublicId | null;
+  topicId: PublicId | null;
 }
 
 export interface BookmarkView {

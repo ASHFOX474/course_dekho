@@ -6,6 +6,7 @@ import type {
   BookmarkView,
   Course,
   Enrollment,
+  EnrollmentRequest,
   LearningOverview,
   SemesterSummary,
   SolvedQuestionView,
@@ -24,6 +25,7 @@ import type {
   BookmarkDto,
   CourseSummaryDto,
   EnrollmentDto,
+  EnrollmentRequestDto,
   LearningOverviewDto,
   SemesterSummaryDto,
   SolvedQuestionDto,
@@ -134,6 +136,22 @@ export function toEnrollmentDto(enrollment: Enrollment): EnrollmentDto {
   };
 }
 
+export function toEnrollmentRequestDto(enrollment: EnrollmentRequest): EnrollmentRequestDto {
+  return {
+    id: enrollment.id,
+    user: { ...enrollment.user },
+    userEmail: enrollment.userEmail,
+    courseId: enrollment.courseId,
+    courseCode: enrollment.courseCode,
+    courseName: enrollment.courseName,
+    status: enrollment.status,
+    requestedAt: enrollment.requestedAt.toISOString(),
+    reviewedBy: enrollment.reviewedBy ? { ...enrollment.reviewedBy } : null,
+    reviewedAt: enrollment.reviewedAt?.toISOString() ?? null,
+    rejectionReason: enrollment.rejectionReason,
+  };
+}
+
 export function toSubmissionDto(submission: Submission): SubmissionDto {
   return {
     id: submission.id,
@@ -177,6 +195,7 @@ export function toLearningOverviewDto(overview: LearningOverview): LearningOverv
       enrolledAt: course.enrolledAt.toISOString(),
     })),
     topics: overview.topics.map(toTopicProgressDto),
+    enrollmentRequests: overview.enrollmentRequests.map(toEnrollmentRequestDto),
   };
 }
 

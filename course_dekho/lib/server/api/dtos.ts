@@ -157,6 +157,20 @@ export interface EnrollmentDto {
   enrolledAt: string;
 }
 
+export interface EnrollmentRequestDto {
+  id: string;
+  user: ContributorSummaryDto;
+  userEmail: string;
+  courseId: string;
+  courseCode: string;
+  courseName: string;
+  status: "pending" | "approved" | "rejected";
+  requestedAt: string;
+  reviewedBy: ContributorSummaryDto | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+}
+
 export interface SubmissionDto {
   id: string;
   contributor: ContributorSummaryDto;
@@ -253,6 +267,22 @@ export interface TopicProgressDto {
 export interface LearningOverviewDto {
   courses: LearningCourseDto[];
   topics: TopicProgressDto[];
+  enrollmentRequests: EnrollmentRequestDto[];
+}
+
+export interface ContinueLearningDto {
+  href: string;
+  courseId: string | null;
+  topicId: string | null;
+}
+
+export interface DisplayPreferenceDto {
+  theme: "light" | "dark";
+}
+
+export interface ResourceCompletionDto {
+  resourceId: string;
+  completed: boolean;
 }
 
 export interface BookmarkDto {
@@ -269,10 +299,6 @@ export interface BookmarkDto {
 export interface CreateBookmarkRequestDto {
   targetType: BookmarkTargetType;
   targetId: string;
-}
-
-export interface ProgressRequestDto {
-  progressPercent: number;
 }
 
 export interface AccessHistoryDto {

@@ -49,7 +49,7 @@ try {
   });
   async function submit(name, bytes) {
     const form = new FormData();
-    for (const [key, value] of Object.entries({ resourceType: 'study_material', title: 'Temporary workflow verification', description: 'Rolled back after verification', courseId: topic.course_id, topicId: topic.topic_id, externalUrl: 'https://drive.google.com/file/d/verification/view' })) form.append(key, value);
+    for (const [key, value] of Object.entries({ resourceType: 'tutorial', title: 'Temporary workflow verification', description: 'Rolled back after verification', courseId: topic.course_id, topicId: topic.topic_id, externalUrl: 'https://drive.google.com/file/d/verification/view' })) form.append(key, value);
     form.append('file', new File([bytes], name));
     assert.equal((await handlers.createSubmission(request('learner', form))).status, 403);
     const response = await handlers.createSubmission(request('contributor', form));
@@ -79,9 +79,11 @@ try {
 
   const learner = await auth.getSessionUser(tokens.learner);
   const contributor = await auth.getSessionUser(tokens.contributor);
-  await workspace.createEnrollment(learner, topic.course_id);
+  const admin = await auth.getSessionUser(tokens.admin);
+  const enrollment = await workspace.createEnrollment(learner, topic.course_id);
+  if (enrollment.status === 'pending') await workspace.reviewEnrollment(admin, enrollment.id, 'approved', null);
   const bookmark = await workspace.createBookmark(learner, { targetType: 'resource', targetId: resourceId });
-  await workspace.updateProgress(learner, topic.topic_id, 63);
+  await workspace.setResourceCompletion(learner, resourceId, true);
   assert.equal((await workspace.listBookmarks(contributor)).some(row => row.id === bookmark.id), false);
   await assert.rejects(workspace.deleteBookmark(contributor, bookmark.id), /not found/i);
   await auth.logout(tokens.learner);
@@ -90,8 +92,9 @@ try {
   const freshLearner = await new AuthService({ pool: adapter }).getSessionUser(tokens.learner);
   const freshWorkspace = new WorkspaceService({ pool: adapter });
   assert.ok((await freshWorkspace.listBookmarks(freshLearner)).some(row => row.id === bookmark.id));
-  assert.equal((await freshWorkspace.getLearning(freshLearner)).topics.find(row => row.topicId === topic.topic_id).progressPercent, 63);
-  console.log('PASS: bookmark ownership, progress persistence, session revocation and access through a fresh session.');
+  const derivedProgress = (await freshWorkspace.getLearning(freshLearner)).topics.find(row => row.topicId === topic.topic_id)?.progressPercent;
+  assert.ok(derivedProgress > 0 && derivedProgress <= 100);
+  console.log('PASS: bookmark ownership, resource-derived progress, session revocation and access through a fresh session.');
 } catch (error) {
   console.error('Workflow verification failed:', error instanceof assert.AssertionError ? error.message : error.name, error.code || '');
   process.exitCode = 1;

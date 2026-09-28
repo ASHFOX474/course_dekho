@@ -1,12 +1,12 @@
 import { ValidationError } from "./errors.ts";
 import type { ResourceEdit } from "../../resource-edit.ts";
-import { resourceTypes } from "../domain/models.ts";
+import { displayThemes, resourceTypes } from "../domain/models.ts";
+import type { DisplayTheme } from "../domain/models.ts";
 import type {
   CreateBookmarkRequestDto,
   CreateEnrollmentRequestDto,
   CreateSubmissionRequestDto,
   LoginRequestDto,
-  ProgressRequestDto,
   RegisterRequestDto,
   RejectSubmissionRequestDto,
   RejectUserRequestDto,
@@ -222,6 +222,36 @@ export function validateCreateEnrollmentRequest(value: unknown): CreateEnrollmen
   return { courseId };
 }
 
+export function validateResourceCompletionRequest(value: unknown): { completed: boolean } {
+  if (!isObject(value)) throw new ValidationError("Request validation failed.", { body: ["Request body must be a JSON object."] });
+  const errors: FieldErrors = {};
+  rejectUnknownFields(value, ["completed"], errors);
+  if (typeof value.completed !== "boolean") addError(errors, "completed", "completed must be true or false.");
+  throwIfInvalid(errors);
+  return { completed: value.completed as boolean };
+}
+
+export function validateFolderActivityRequest(value: unknown): { courseId: string; topicId: string | null } {
+  if (!isObject(value)) throw new ValidationError("Request validation failed.", { body: ["Request body must be a JSON object."] });
+  const errors: FieldErrors = {};
+  rejectUnknownFields(value, ["courseId", "topicId"], errors);
+  const courseId = readPublicId(value.courseId, "courseId", errors);
+  const topicId = value.topicId === null || value.topicId === undefined ? null : readPublicId(value.topicId, "topicId", errors);
+  throwIfInvalid(errors);
+  return { courseId, topicId };
+}
+
+export function validateDisplayPreferenceRequest(value: unknown): { theme: DisplayTheme } {
+  if (!isObject(value)) throw new ValidationError("Request validation failed.", { body: ["Request body must be a JSON object."] });
+  const errors: FieldErrors = {};
+  rejectUnknownFields(value, ["theme"], errors);
+  if (typeof value.theme !== "string" || !displayThemes.includes(value.theme as DisplayTheme)) {
+    addError(errors, "theme", "theme must be light or dark.");
+  }
+  throwIfInvalid(errors);
+  return { theme: value.theme as DisplayTheme };
+}
+
 export function validateBookmarkRequest(value: unknown): CreateBookmarkRequestDto {
   if (!isObject(value)) {
     throw new ValidationError("Request validation failed.", {
@@ -237,27 +267,6 @@ export function validateBookmarkRequest(value: unknown): CreateBookmarkRequestDt
   const targetId = readPublicId(value.targetId, "targetId", errors);
   throwIfInvalid(errors);
   return { targetType: targetType as CreateBookmarkRequestDto["targetType"], targetId };
-}
-
-export function validateProgressRequest(value: unknown): ProgressRequestDto {
-  if (!isObject(value)) {
-    throw new ValidationError("Request validation failed.", {
-      body: ["Request body must be a JSON object."],
-    });
-  }
-  const errors: FieldErrors = {};
-  rejectUnknownFields(value, ["progressPercent"], errors);
-  const progressPercent = value.progressPercent;
-  if (
-    typeof progressPercent !== "number" ||
-    !Number.isInteger(progressPercent) ||
-    progressPercent < 0 ||
-    progressPercent > 100
-  ) {
-    addError(errors, "progressPercent", "progressPercent must be an integer from 0 to 100.");
-  }
-  throwIfInvalid(errors);
-  return { progressPercent: progressPercent as number };
 }
 
 export function validateRegisterRequest(value: unknown): RegisterRequestDto {

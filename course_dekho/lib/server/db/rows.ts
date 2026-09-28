@@ -1,6 +1,8 @@
 import type { QueryResultRow } from "pg";
 import type {
   BookmarkTargetType,
+  DisplayTheme,
+  EnrollmentReviewStatus,
   EnrollmentStatus,
   RegistrationStatus,
   ResourceType,
@@ -174,6 +176,35 @@ export interface LearningCourseRow extends QueryResultRow {
   enrollment_status: EnrollmentStatus;
   enrolled_at: Date;
   progress_percent: number;
+}
+
+export interface EnrollmentRequestRow extends QueryResultRow {
+  enrollment_public_id: string;
+  user_public_id: string;
+  user_name: string;
+  user_email: string;
+  course_public_id: string;
+  course_code: string;
+  course_name: string;
+  review_status: EnrollmentReviewStatus;
+  requested_at: Date;
+  reviewer_public_id: string | null;
+  reviewer_name: string | null;
+  reviewed_at: Date | null;
+  rejection_reason: string | null;
+}
+
+export interface ContinueLearningRow extends QueryResultRow {
+  course_public_id: string | null;
+  topic_public_id: string | null;
+}
+
+export interface ResourceCompletionRow extends QueryResultRow {
+  content_public_id: string;
+}
+
+export interface DisplayPreferenceRow extends QueryResultRow {
+  theme: DisplayTheme;
 }
 
 export interface TopicProgressViewRow extends QueryResultRow {

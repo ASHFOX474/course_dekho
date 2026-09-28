@@ -4,14 +4,18 @@ import type {
   AccessHistoryViewRow,
   AdminStatsRow,
   BookmarkViewRow,
+  ContinueLearningRow,
+  DisplayPreferenceRow,
+  EnrollmentRequestRow,
   InternalIdRow,
   LearningCourseRow,
+  ResourceCompletionRow,
   SolvedQuestionViewRow,
   SubmissionRow,
   TopicProgressViewRow,
   UserProfileRow,
 } from "../rows.ts";
-import type { BookmarkTargetType, ResourceType } from "../../domain/models.ts";
+import type { BookmarkTargetType, DisplayTheme, ResourceType } from "../../domain/models.ts";
 
 export async function queryUserProfile(
   executor: DatabaseExecutor,
@@ -72,6 +76,8 @@ export async function queryLearningCourses(
         ON semester.id = course.semester_id
        AND semester.university_id = course.university_id
       WHERE app_user.public_id = $1::uuid
+        AND enrollment.review_status = 'approved'
+        AND enrollment.status IN ('active', 'completed')
         AND course.is_active
         AND university.is_active
         AND semester.is_active
@@ -87,32 +93,47 @@ export async function queryTopicProgress(
   userId: string
 ): Promise<TopicProgressViewRow[]> {
   const result = await executor.query<TopicProgressViewRow, [string]>({
-    name: "workspace-topic-progress-v1",
+    name: "workspace-topic-progress-v2",
     text: `
       SELECT
-        progress.public_id::text AS progress_public_id,
+        topic.public_id::text AS progress_public_id,
         topic.public_id::text AS topic_public_id,
         topic.name AS topic_name,
         course.public_id::text AS course_public_id,
         course.code AS course_code,
         course.name AS course_name,
-        progress.progress_percent,
-        progress.is_completed,
-        progress.last_accessed_at
-      FROM coursedekho.topic_progress AS progress
-      JOIN coursedekho.app_user AS app_user ON app_user.id = progress.user_id
-      JOIN coursedekho.topic AS topic ON topic.id = progress.topic_id
-      JOIN coursedekho.course AS course ON course.id = topic.course_id
+        coursedekho.calculate_topic_progress(enrollment.user_id, topic.id)::smallint AS progress_percent,
+        coursedekho.calculate_topic_progress(enrollment.user_id, topic.id) = 100 AS is_completed,
+        max(completion.completed_at) AS last_accessed_at
+      FROM coursedekho.enrollment AS enrollment
+      JOIN coursedekho.app_user AS app_user ON app_user.id = enrollment.user_id
+      JOIN coursedekho.course AS course ON course.id = enrollment.course_id
+      JOIN coursedekho.topic AS topic ON topic.course_id = course.id
+      JOIN coursedekho.resource_completion AS completion
+        ON completion.user_id = enrollment.user_id
+      JOIN coursedekho.content AS content
+        ON content.id = completion.content_id
+       AND content.topic_id = topic.id
+       AND content.is_active
+       AND content.resource_type IN ('tutorial', 'question', 'leetcode_problem')
+      JOIN coursedekho.content_revision AS revision ON revision.id = content.current_revision_id
+      JOIN coursedekho.content_submission AS submission
+        ON submission.id = revision.submission_id
+       AND submission.status = 'approved'
       JOIN coursedekho.university AS university ON university.id = course.university_id
       JOIN coursedekho.semester AS semester
         ON semester.id = course.semester_id
        AND semester.university_id = course.university_id
       WHERE app_user.public_id = $1::uuid
+        AND enrollment.status IN ('active', 'completed')
+        AND enrollment.review_status = 'approved'
         AND topic.is_active
         AND course.is_active
         AND university.is_active
         AND semester.is_active
-      ORDER BY progress.last_accessed_at DESC, progress.id DESC
+      GROUP BY enrollment.user_id, enrollment.id, topic.id, course.id
+      ORDER BY enrollment.enrolled_at DESC, enrollment.id DESC,
+        topic.sequence_order, topic.id
     `,
     values: [userId],
   });
@@ -295,10 +316,14 @@ export async function queryCreateEnrollment(
   courseId: string
 ): Promise<string | null> {
   const result = await executor.query<{ enrollment_public_id: string }, [string, string]>({
-    name: "workspace-create-enrollment-v1",
+    name: "workspace-create-enrollment-request-v2",
     text: `
-      INSERT INTO coursedekho.enrollment (user_id, course_id)
+      INSERT INTO coursedekho.enrollment (
+        user_id, course_id, review_status, requested_at,
+        reviewed_by_user_id, reviewed_at, rejection_reason
+      )
       SELECT app_user.id, course.id
+        , 'pending'::coursedekho.enrollment_review_status, now(), NULL, NULL, NULL
       FROM coursedekho.app_user AS app_user
       CROSS JOIN coursedekho.course AS course
       WHERE app_user.public_id = $1::uuid
@@ -315,8 +340,7 @@ export async function queryCreateEnrollment(
             AND university.is_active
             AND semester.is_active
         )
-      ON CONFLICT (user_id, course_id) DO UPDATE
-      SET status = 'active', status_changed_at = now(), updated_at = now()
+      ON CONFLICT (user_id, course_id) DO NOTHING
       RETURNING public_id::text AS enrollment_public_id
     `,
     values: [userId, courseId],
@@ -324,52 +348,317 @@ export async function queryCreateEnrollment(
   return result.rows[0]?.enrollment_public_id ?? null;
 }
 
-export async function queryUpdateProgress(
+const enrollmentRequestProjectionSql = `
+  SELECT
+    enrollment.public_id::text AS enrollment_public_id,
+    learner.public_id::text AS user_public_id,
+    learner.name AS user_name,
+    learner.email AS user_email,
+    course.public_id::text AS course_public_id,
+    course.code AS course_code,
+    course.name AS course_name,
+    enrollment.review_status,
+    enrollment.requested_at,
+    reviewer.public_id::text AS reviewer_public_id,
+    reviewer.name AS reviewer_name,
+    enrollment.reviewed_at,
+    enrollment.rejection_reason
+  FROM coursedekho.enrollment AS enrollment
+  JOIN coursedekho.app_user AS learner ON learner.id = enrollment.user_id
+  JOIN coursedekho.course AS course ON course.id = enrollment.course_id
+  LEFT JOIN coursedekho.app_user AS reviewer ON reviewer.id = enrollment.reviewed_by_user_id
+`;
+
+export async function queryEnrollmentRequestsByUser(
+  executor: DatabaseExecutor,
+  userId: string
+): Promise<EnrollmentRequestRow[]> {
+  const result = await executor.query<EnrollmentRequestRow, [string]>({
+    name: "workspace-user-enrollment-requests-v1",
+    text: `${enrollmentRequestProjectionSql}
+      WHERE learner.public_id = $1::uuid
+      ORDER BY enrollment.requested_at DESC, enrollment.id DESC
+    `,
+    values: [userId],
+  });
+  return result.rows;
+}
+
+export async function queryEnrollmentRequestsForAdmin(
+  executor: DatabaseExecutor
+): Promise<EnrollmentRequestRow[]> {
+  const result = await executor.query<EnrollmentRequestRow, []>({
+    name: "workspace-admin-enrollment-requests-v1",
+    text: `${enrollmentRequestProjectionSql}
+      ORDER BY
+        CASE enrollment.review_status WHEN 'pending' THEN 0 WHEN 'rejected' THEN 1 ELSE 2 END,
+        enrollment.requested_at DESC,
+        enrollment.id DESC
+    `,
+    values: [],
+  });
+  return result.rows;
+}
+
+export async function queryReviewEnrollment(
+  executor: DatabaseExecutor,
+  input: { enrollmentId: string; reviewerId: string; decision: "approved" | "rejected"; reason: string | null; reviewedAt: Date }
+): Promise<boolean> {
+  const result = await executor.query<InternalIdRow, [string, string, string, string | null, Date]>({
+    name: "workspace-review-enrollment-v1",
+    text: `
+      UPDATE coursedekho.enrollment AS enrollment
+      SET review_status = $3::coursedekho.enrollment_review_status,
+          reviewed_by_user_id = reviewer.id,
+          reviewed_at = $5::timestamptz,
+          rejection_reason = CASE WHEN $3::text = 'rejected' THEN $4::text ELSE NULL END,
+          status = 'active',
+          status_changed_at = $5::timestamptz,
+          updated_at = $5::timestamptz
+      FROM coursedekho.app_user AS reviewer
+      WHERE enrollment.public_id = $1::uuid
+        AND reviewer.public_id = $2::uuid
+        AND reviewer.role = 'admin'
+        AND reviewer.is_active
+        AND reviewer.registration_status = 'approved'
+        AND enrollment.review_status = 'pending'
+        AND $3::text IN ('approved', 'rejected')
+        AND ($3::text = 'approved' OR btrim(COALESCE($4::text, '')) <> '')
+      RETURNING enrollment.id::text AS internal_id
+    `,
+    values: [input.enrollmentId, input.reviewerId, input.decision, input.reason, input.reviewedAt],
+  });
+  return result.rowCount === 1;
+}
+
+export async function queryResourceCompletions(
   executor: DatabaseExecutor,
   userId: string,
-  topicId: string,
-  progressPercent: number,
-  now: Date
-): Promise<boolean> {
-  const result = await executor.query<InternalIdRow, [string, string, number, Date]>({
-    name: "workspace-upsert-topic-progress-v1",
+  topicId: string
+): Promise<ResourceCompletionRow[]> {
+  const result = await executor.query<ResourceCompletionRow, [string, string]>({
+    name: "workspace-resource-completions-v1",
     text: `
-      INSERT INTO coursedekho.topic_progress (
-        user_id, topic_id, progress_percent, is_completed, completed_at, last_accessed_at
-      )
-      SELECT
-        app_user.id,
-        topic.id,
-        $3::smallint,
-        $3::smallint = 100,
-        CASE WHEN $3::smallint = 100 THEN $4::timestamptz ELSE NULL END,
-        $4::timestamptz
-      FROM coursedekho.app_user AS app_user
-      CROSS JOIN coursedekho.topic AS topic
+      SELECT content.public_id::text AS content_public_id
+      FROM coursedekho.resource_completion AS completion
+      JOIN coursedekho.app_user AS app_user ON app_user.id = completion.user_id
+      JOIN coursedekho.content AS content ON content.id = completion.content_id
+      JOIN coursedekho.content_revision AS revision ON revision.id = content.current_revision_id
+      JOIN coursedekho.content_submission AS submission ON submission.id = revision.submission_id
+      JOIN coursedekho.topic AS topic ON topic.id = content.topic_id
+      JOIN coursedekho.enrollment AS enrollment
+        ON enrollment.user_id = app_user.id AND enrollment.course_id = topic.course_id
       WHERE app_user.public_id = $1::uuid
         AND topic.public_id = $2::uuid
+        AND enrollment.review_status = 'approved'
+        AND enrollment.status IN ('active', 'completed')
+        AND submission.status = 'approved'
+        AND content.is_active
+        AND content.resource_type IN ('tutorial', 'question', 'leetcode_problem')
         AND topic.is_active
-        AND EXISTS (
-          SELECT 1
-          FROM coursedekho.course AS course
-          JOIN coursedekho.university AS university ON university.id = course.university_id
-          JOIN coursedekho.semester AS semester
-            ON semester.id = course.semester_id
-           AND semester.university_id = course.university_id
-          WHERE course.id = topic.course_id
-            AND course.is_active
-            AND university.is_active
-            AND semester.is_active
+      ORDER BY completion.completed_at DESC, completion.id DESC
+    `,
+    values: [userId, topicId],
+  });
+  return result.rows;
+}
+
+export async function querySetResourceCompletion(
+  executor: DatabaseExecutor,
+  userId: string,
+  resourceId: string,
+  completed: boolean,
+  now: Date
+): Promise<boolean> {
+  const targetSql = `
+    SELECT app_user.id AS user_id, content.id AS content_id
+    FROM coursedekho.app_user AS app_user
+    CROSS JOIN coursedekho.content AS content
+    JOIN coursedekho.content_revision AS revision ON revision.id = content.current_revision_id
+    JOIN coursedekho.content_submission AS submission ON submission.id = revision.submission_id
+    JOIN coursedekho.topic AS topic ON topic.id = content.topic_id
+    JOIN coursedekho.enrollment AS enrollment
+      ON enrollment.user_id = app_user.id AND enrollment.course_id = topic.course_id
+    WHERE app_user.public_id = $1::uuid
+      AND content.public_id = $2::uuid
+      AND enrollment.review_status = 'approved'
+      AND enrollment.status IN ('active', 'completed')
+      AND submission.status = 'approved'
+      AND content.is_active
+      AND content.resource_type IN ('tutorial', 'question', 'leetcode_problem')
+      AND topic.is_active
+  `;
+  if (completed) {
+    const result = await executor.query<InternalIdRow, [string, string, Date]>({
+      name: "workspace-complete-resource-v1",
+      text: `
+        INSERT INTO coursedekho.resource_completion AS completion (
+          user_id, content_id, completed_at, updated_at
         )
-      ON CONFLICT (user_id, topic_id) DO UPDATE
-      SET progress_percent = EXCLUDED.progress_percent,
-          is_completed = EXCLUDED.is_completed,
-          completed_at = EXCLUDED.completed_at,
-          last_accessed_at = EXCLUDED.last_accessed_at,
-          updated_at = $4::timestamptz
+        SELECT target.user_id, target.content_id, $3::timestamptz, $3::timestamptz
+        FROM (${targetSql}) AS target
+        ON CONFLICT (user_id, content_id) DO UPDATE
+        SET updated_at = completion.updated_at
+        RETURNING id::text AS internal_id
+      `,
+      values: [userId, resourceId, now],
+    });
+    return result.rowCount === 1;
+  }
+  const result = await executor.query<{ accessible: boolean }, [string, string]>({
+    name: "workspace-uncomplete-resource-v1",
+    text: `
+      WITH target AS (${targetSql}), deleted AS (
+        DELETE FROM coursedekho.resource_completion AS completion
+        USING target
+        WHERE completion.user_id = target.user_id
+          AND completion.content_id = target.content_id
+      )
+      SELECT EXISTS (SELECT 1 FROM target) AS accessible
+    `,
+    values: [userId, resourceId],
+  });
+  return result.rows[0]?.accessible === true;
+}
+
+export async function queryRecordFolderActivity(
+  executor: DatabaseExecutor,
+  userId: string,
+  courseId: string,
+  topicId: string | null,
+  openedAt: Date
+): Promise<boolean> {
+  const result = await executor.query<InternalIdRow, [string, string, string | null, Date]>({
+    name: "workspace-record-folder-activity-v1",
+    text: `
+      INSERT INTO coursedekho.learning_folder_activity AS activity (
+        user_id, course_id, topic_id, opened_at, updated_at
+      )
+      SELECT app_user.id, course.id, topic.id, $4::timestamptz, $4::timestamptz
+      FROM coursedekho.app_user AS app_user
+      CROSS JOIN coursedekho.course AS course
+      LEFT JOIN coursedekho.topic AS topic
+        ON topic.course_id = course.id AND topic.public_id = $3::uuid AND topic.is_active
+      JOIN coursedekho.enrollment AS enrollment
+        ON enrollment.user_id = app_user.id AND enrollment.course_id = course.id
+      WHERE app_user.public_id = $1::uuid
+        AND course.public_id = $2::uuid
+        AND ($3::uuid IS NULL OR topic.id IS NOT NULL)
+        AND enrollment.review_status = 'approved'
+        AND enrollment.status IN ('active', 'completed')
+        AND course.is_active
+      ON CONFLICT (user_id) DO UPDATE
+      SET course_id = EXCLUDED.course_id,
+          topic_id = EXCLUDED.topic_id,
+          opened_at = EXCLUDED.opened_at,
+          updated_at = EXCLUDED.updated_at
       RETURNING id::text AS internal_id
     `,
-    values: [userId, topicId, progressPercent, now],
+    values: [userId, courseId, topicId, openedAt],
+  });
+  return result.rowCount === 1;
+}
+
+export async function queryContinueLearning(
+  executor: DatabaseExecutor,
+  userId: string
+): Promise<ContinueLearningRow> {
+  const result = await executor.query<ContinueLearningRow, [string]>({
+    name: "workspace-continue-learning-v1",
+    text: `
+      WITH learner AS (
+        SELECT id FROM coursedekho.app_user
+        WHERE public_id = $1::uuid AND is_active
+      ), recent AS (
+        SELECT course_id, topic_id, opened_at
+        FROM coursedekho.learning_folder_activity, learner
+        WHERE user_id = learner.id
+        UNION ALL
+        SELECT topic.course_id, topic.id, access.accessed_at
+        FROM coursedekho.content_access AS access
+        JOIN learner ON learner.id = access.user_id
+        JOIN coursedekho.content AS content ON content.id = access.content_id AND content.is_active
+        JOIN coursedekho.content_revision AS revision ON revision.id = content.current_revision_id
+        JOIN coursedekho.content_submission AS submission
+          ON submission.id = revision.submission_id AND submission.status = 'approved'
+        JOIN coursedekho.topic AS topic ON topic.id = content.topic_id AND topic.is_active
+      ), eligible_recent AS (
+        SELECT recent.course_id, recent.topic_id
+        FROM recent
+        JOIN learner ON TRUE
+        JOIN coursedekho.enrollment AS enrollment
+          ON enrollment.user_id = learner.id AND enrollment.course_id = recent.course_id
+        JOIN coursedekho.course AS course ON course.id = recent.course_id AND course.is_active
+        LEFT JOIN coursedekho.topic AS topic ON topic.id = recent.topic_id AND topic.is_active
+        WHERE enrollment.review_status = 'approved'
+          AND enrollment.status IN ('active', 'completed')
+          AND (recent.topic_id IS NULL OR topic.id IS NOT NULL)
+        ORDER BY recent.opened_at DESC
+        LIMIT 1
+      ), fallback AS (
+        SELECT enrollment.course_id, topic.id AS topic_id
+        FROM learner
+        JOIN coursedekho.enrollment AS enrollment ON enrollment.user_id = learner.id
+        JOIN coursedekho.course AS course ON course.id = enrollment.course_id AND course.is_active
+        LEFT JOIN coursedekho.topic AS topic ON topic.course_id = course.id AND topic.is_active
+        WHERE enrollment.review_status = 'approved'
+          AND enrollment.status IN ('active', 'completed')
+        ORDER BY (coursedekho.calculate_topic_progress(learner.id, topic.id) = 100)::int,
+          enrollment.enrolled_at DESC,
+          topic.sequence_order NULLS LAST, topic.id NULLS LAST
+        LIMIT 1
+      ), selected AS (
+        SELECT course_id, topic_id FROM eligible_recent
+        UNION ALL
+        SELECT course_id, topic_id FROM fallback WHERE NOT EXISTS (SELECT 1 FROM eligible_recent)
+        LIMIT 1
+      )
+      SELECT course.public_id::text AS course_public_id,
+        topic.public_id::text AS topic_public_id
+      FROM selected
+      JOIN coursedekho.course AS course ON course.id = selected.course_id
+      LEFT JOIN coursedekho.topic AS topic ON topic.id = selected.topic_id
+    `,
+    values: [userId],
+  });
+  return result.rows[0] ?? { course_public_id: null, topic_public_id: null };
+}
+
+export async function queryDisplayPreference(
+  executor: DatabaseExecutor,
+  userId: string
+): Promise<DisplayPreferenceRow> {
+  const result = await executor.query<DisplayPreferenceRow, [string]>({
+    name: "workspace-display-preference-v1",
+    text: `
+      SELECT COALESCE(preference.theme, 'light') AS theme
+      FROM coursedekho.app_user AS app_user
+      LEFT JOIN coursedekho.user_display_preference AS preference ON preference.user_id = app_user.id
+      WHERE app_user.public_id = $1::uuid AND app_user.is_active
+    `,
+    values: [userId],
+  });
+  return result.rows[0] ?? { theme: "light" };
+}
+
+export async function queryUpdateDisplayPreference(
+  executor: DatabaseExecutor,
+  userId: string,
+  theme: DisplayTheme,
+  now: Date
+): Promise<boolean> {
+  const result = await executor.query<InternalIdRow, [string, DisplayTheme, Date]>({
+    name: "workspace-update-display-preference-v1",
+    text: `
+      INSERT INTO coursedekho.user_display_preference AS preference (user_id, theme, updated_at)
+      SELECT app_user.id, $2::text, $3::timestamptz
+      FROM coursedekho.app_user AS app_user
+      WHERE app_user.public_id = $1::uuid AND app_user.is_active
+      ON CONFLICT (user_id) DO UPDATE
+      SET theme = EXCLUDED.theme, updated_at = EXCLUDED.updated_at
+      RETURNING id::text AS internal_id
+    `,
+    values: [userId, theme, now],
   });
   return result.rowCount === 1;
 }

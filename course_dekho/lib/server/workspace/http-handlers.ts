@@ -4,6 +4,7 @@ import {
   toAccessHistoryDto,
   toAdminStatsDto,
   toBookmarkDto,
+  toEnrollmentRequestDto,
   toLearningOverviewDto,
   toSolvedQuestionDto,
   toSubmissionDto,
@@ -12,8 +13,10 @@ import {
 import {
   validateBookmarkRequest,
   validateCreateEnrollmentRequest,
+  validateDisplayPreferenceRequest,
+  validateFolderActivityRequest,
   validateCreateSubmissionRequest,
-  validateProgressRequest,
+  validateResourceCompletionRequest,
   validatePublicId,
   validateResourceEdit,
   validateRejectSubmissionRequest,
@@ -109,18 +112,96 @@ export function createWorkspaceHttpHandlers(dependencies: WorkspaceHttpDependenc
         assertSafeMutation(request, dependencies);
         const actor = await actorFor(request, dependencies, learnerRoles);
         const input = validateCreateEnrollmentRequest(await readJsonObject(request));
-        return jsonResponse({ data: await dependencies.workspaceService.createEnrollment(actor, input.courseId) }, 201);
+        return jsonResponse({ data: toEnrollmentRequestDto(await dependencies.workspaceService.createEnrollment(actor, input.courseId)) }, 201);
       } catch (error) { return errorResponse(error, dependencies); }
     },
 
-    async updateProgress(request: Request, topicId: string): Promise<Response> {
+    async listEnrollmentRequests(request: Request): Promise<Response> {
+      try {
+        const actor = await actorFor(request, dependencies, ["admin"]);
+        const rows = await dependencies.workspaceService.listEnrollmentRequests(actor);
+        return jsonResponse({ data: rows.map(toEnrollmentRequestDto) }, 200);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async approveEnrollment(request: Request, enrollmentId: string): Promise<Response> {
+      try {
+        assertSafeMutation(request, dependencies);
+        const actor = await actorFor(request, dependencies, ["admin"]);
+        const reviewed = await dependencies.workspaceService.reviewEnrollment(actor, validatePublicId(enrollmentId, "enrollmentId"), "approved", null);
+        return jsonResponse({ data: toEnrollmentRequestDto(reviewed) }, 200);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async rejectEnrollment(request: Request, enrollmentId: string): Promise<Response> {
+      try {
+        assertSafeMutation(request, dependencies);
+        const actor = await actorFor(request, dependencies, ["admin"]);
+        const input = validateRejectSubmissionRequest(await readJsonObject(request));
+        const reviewed = await dependencies.workspaceService.reviewEnrollment(actor, validatePublicId(enrollmentId, "enrollmentId"), "rejected", input.reason);
+        return jsonResponse({ data: toEnrollmentRequestDto(reviewed) }, 200);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async listResourceCompletions(request: Request): Promise<Response> {
+      try {
+        const actor = await actorFor(request, dependencies, learnerRoles);
+        const topicId = validatePublicId(new URL(request.url).searchParams.get("topicId"), "topicId");
+        const ids = await dependencies.workspaceService.listResourceCompletions(actor, topicId);
+        return jsonResponse({ data: ids.map(resourceId => ({ resourceId, completed: true })) }, 200);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async setResourceCompletion(request: Request, resourceId: string): Promise<Response> {
       try {
         assertSafeMutation(request, dependencies);
         const actor = await actorFor(request, dependencies, learnerRoles);
-        const publicId = validatePublicId(topicId, "topicId");
-        const input = validateProgressRequest(await readJsonObject(request));
-        const learning = await dependencies.workspaceService.updateProgress(actor, publicId, input.progressPercent);
-        return jsonResponse({ data: toLearningOverviewDto(learning) }, 200);
+        const input = validateResourceCompletionRequest(await readJsonObject(request));
+        const result = await dependencies.workspaceService.setResourceCompletion(actor, validatePublicId(resourceId, "resourceId"), input.completed);
+        return jsonResponse({ data: result }, 200);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async recordFolderActivity(request: Request): Promise<Response> {
+      try {
+        assertSafeMutation(request, dependencies);
+        const actor = await actorFor(request, dependencies, learnerRoles);
+        const input = validateFolderActivityRequest(await readJsonObject(request));
+        await dependencies.workspaceService.recordFolderActivity(actor, input.courseId, input.topicId);
+        return emptyResponse(204);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async getContinueLearning(request: Request): Promise<Response> {
+      try {
+        const actor = await actorFor(request, dependencies, learnerRoles);
+        return jsonResponse({ data: await dependencies.workspaceService.getContinueLearning(actor) }, 200);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async getDisplayPreference(request: Request): Promise<Response> {
+      try {
+        const actor = await actorFor(request, dependencies, allRoles);
+        return jsonResponse({ data: await dependencies.workspaceService.getDisplayPreference(actor) }, 200);
+      } catch (error) { return errorResponse(error, dependencies); }
+    },
+
+    async updateDisplayPreference(request: Request): Promise<Response> {
+      try {
+        assertSafeMutation(request, dependencies);
+        const actor = await actorFor(request, dependencies, allRoles);
+        const input = validateDisplayPreferenceRequest(await readJsonObject(request));
+        const data = await dependencies.workspaceService.updateDisplayPreference(actor, input.theme);
+        const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+        return new Response(JSON.stringify({ data }), {
+          status: 200,
+          headers: {
+            "cache-control": "private, no-store",
+            "content-type": "application/json; charset=utf-8",
+            "set-cookie": `course_dekho_theme=${data.theme}; Path=/; Max-Age=31536000; SameSite=Strict; Priority=High${secure}`,
+            vary: "Cookie",
+          },
+        });
       } catch (error) { return errorResponse(error, dependencies); }
     },
 

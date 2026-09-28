@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Bookmark, ChevronRight, ExternalLink } from "lucide-react";
+import { Bookmark, CheckCircle2, ChevronRight, ExternalLink } from "lucide-react";
 
 import { ResourceLinkForm } from '@/components/ui/ResourceLinkForm';
 import { RemoveResourceButton } from '@/components/ui/RemoveResourceButton';
@@ -20,7 +20,7 @@ import {
   type CourseSummaryDto,
   type TopicSummaryDto,
 } from "@/lib/client/catalog-api";
-import { createBookmark, deleteBookmark, listBookmarks } from "@/lib/client/workspace-api";
+import { createBookmark, deleteBookmark, getLearning, listBookmarks, listResourceCompletions, recordFolderActivity, setResourceCompletion } from "@/lib/client/workspace-api";
 import { useDatabaseData } from "@/lib/client/use-database-data";
 import type { ResourceType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -44,9 +44,20 @@ export default function TopicResourcesPage() {
   const params = useParams<{ courseId: string; topicId: string }>();
   const router = useRouter();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const isLearner = user?.role === "learner" || user?.role === "contributor";
   const bookmarkState = useDatabaseData(
     `topic-bookmarks:${user?.id ?? "anonymous"}:${user?.role ?? "none"}`,
     user?.role === "admin" ? async () => [] : listBookmarks,
+    []
+  );
+  const learning = useDatabaseData(
+    `topic-learning:${user?.id ?? "anonymous"}:${params.courseId}`,
+    isLearner ? getLearning : async () => ({ courses: [], topics: [], enrollmentRequests: [] }),
+    { courses: [], topics: [], enrollmentRequests: [] }
+  );
+  const completionState = useDatabaseData(
+    `topic-resource-completions:${user?.id ?? "anonymous"}:${params.topicId}`,
+    isLearner ? (signal) => listResourceCompletions(params.topicId, signal) : async () => [],
     []
   );
   const [addingResource, setAddingResource] = useState(false);
@@ -57,6 +68,8 @@ export default function TopicResourcesPage() {
   const [activeFilter, setActiveFilter] = useState<FilterTab>(ALL);
   const [resolvedRequest, setResolvedRequest] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [savingResources, setSavingResources] = useState<string[]>([]);
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const requestKey = `${params.courseId}:${params.topicId}`;
   const isLoading = resolvedRequest !== requestKey;
 
@@ -93,6 +106,32 @@ export default function TopicResourcesPage() {
         (activeFilter === ALL || resourceTypeLabel(resource.type) === activeFilter)),
     [activeFilter, resources]
   );
+  const enrolled = learning.data.courses.some((item) => item.courseId === params.courseId);
+  const topicProgress = learning.data.topics.find((item) => item.topicId === params.topicId);
+
+  useEffect(() => {
+    if (!isLearner || learning.isLoading || !enrolled) return;
+    void recordFolderActivity(params.courseId, params.topicId).catch(() => undefined);
+  }, [enrolled, isLearner, learning.isLoading, params.courseId, params.topicId]);
+
+  async function toggleResourceCompletion(resourceId: string, completed: boolean) {
+    const previous = completionState.data;
+    const optimistic = completed
+      ? [...previous.filter(item => item.resourceId !== resourceId), { resourceId, completed: true }]
+      : previous.filter(item => item.resourceId !== resourceId);
+    completionState.setData(optimistic);
+    setSavingResources(current => [...current, resourceId]);
+    setCompletionError(null);
+    try {
+      await setResourceCompletion(resourceId, completed);
+      learning.refresh();
+    } catch (requestError) {
+      completionState.setData(previous);
+      setCompletionError(errorMessage(requestError));
+    } finally {
+      setSavingResources(current => current.filter(id => id !== resourceId));
+    }
+  }
 
   async function toggleResourceBookmark(resourceId: string) {
     try {
@@ -148,12 +187,15 @@ export default function TopicResourcesPage() {
           <span className="text-slate-600">Resources</span>
         </p>
 
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">{topic.name}</h2>
-          <p className="text-sm text-slate-500">
-            Browse approved, active resources for this topic
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">{topic.name}</h2>
+            <p className="text-sm text-slate-500">Browse approved, active resources for this topic.</p>
+          </div>
+          {isLearner && (enrolled ? <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-2 text-sm font-semibold text-violet-800">{topicProgress?.completed && <CheckCircle2 size={16} />}{topicProgress?.progressPercent ?? 0}% complete</span> : <Link href={`/courses/${course.id}`} className="text-xs font-semibold text-violet-700">Request enrollment to track progress →</Link>)}
         </div>
+
+        {(learning.error || completionState.error || completionError) && <p role="alert" className="text-sm text-rose-600">{completionError ?? learning.error ?? completionState.error}</p>}
 
         {user?.role === 'admin' && <div><button className="action-primary" onClick={() => setAddingResource(true)}>Add resource link</button></div>}
         {user?.role === 'admin' && addingResource && <ResourceLinkForm courseId={course.id} topicId={topic.id} topicName={topic.name} defaultResourceType={topicResourceTypes.find(type => resourceTypeLabel(type) === activeFilter)} onClose={() => setAddingResource(false)} onSaved={() => { setAddingResource(false); setRefreshVersion(value => value + 1); }} />}
@@ -183,7 +225,6 @@ export default function TopicResourcesPage() {
                 <th className="px-4 py-3 font-medium">Resource</th>
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Added By</th>
-                <th className="px-4 py-3 font-medium">Year</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
@@ -193,6 +234,7 @@ export default function TopicResourcesPage() {
                 const bookmarked = bookmarkState.data.some(
                   (bookmark) => bookmark.targetType === "resource" && bookmark.targetId === resource.id
                 );
+                const completed = completionState.data.some(item => item.resourceId === resource.id && item.completed);
                 return (
                   <tr key={resource.id} className="cursor-pointer hover:bg-slate-50"
                     title="Double-click to open resource"
@@ -211,10 +253,10 @@ export default function TopicResourcesPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-500">{displayType}</td>
                     <td className="px-4 py-3 text-slate-500">{resource.addedBy.name}</td>
-                    <td className="px-4 py-3 text-slate-500">{resource.year ?? "—"}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         {user?.role === 'admin' && <><EditResourceButton resource={resource} onSaved={() => setRefreshVersion(value => value + 1)} /><RemoveResourceButton resourceId={resource.id} title={resource.title} onRemoved={() => setResources(current => current.filter(item => item.id !== resource.id))} /></>}
+                        {isLearner && <input type="checkbox" checked={completed} disabled={!enrolled || savingResources.includes(resource.id)} onChange={event => void toggleResourceCompletion(resource.id, event.target.checked)} aria-label={`Mark ${resource.title} complete`} className="mr-1 h-4 w-4 accent-violet-600 disabled:opacity-50" />}
                         {user?.role !== "admin" && <button
                           type="button"
                           onClick={() => void toggleResourceBookmark(resource.id)}
@@ -235,7 +277,7 @@ export default function TopicResourcesPage() {
 
               {visibleResources.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-400">
                     No approved active resources of this type yet.
                   </td>
                 </tr>

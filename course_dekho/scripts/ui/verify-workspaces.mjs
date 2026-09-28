@@ -6,7 +6,12 @@ import assert from 'node:assert/strict';
 const origin = process.env.COURSEDEKHO_UI_ORIGIN || 'http://localhost:3002';
 const output = resolve('.data/ui-check');
 await mkdir(output, { recursive: true });
-const edge = spawn('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=9335', `--user-data-dir=${resolve('.data/ui-check/browser')}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
+const browserPath = process.env.COURSEDEKHO_BROWSER_PATH || (process.platform === 'darwin'
+  ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  : process.platform === 'win32'
+    ? 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
+    : 'google-chrome');
+const edge = spawn(browserPath, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=9335', `--user-data-dir=${resolve('.data/ui-check/browser')}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 let socket;
 try {
@@ -33,10 +38,22 @@ try {
     academic('topic', id(502), courses[0].id, 'Trees', { sequenceOrder: 2 }),
   ];
   const errors = [];
+  const credentials = {
+    admin: { identifier: 'nusrat', password: 'admin123' },
+    contributor: { identifier: 'sharif', password: 'teacher123' },
+    learner: { identifier: 'rafiul', password: 'student123' },
+  };
+  let authenticatedRole = null;
   let created = false;
   const profileNames = { admin: 'Ayesha Rahman', contributor: 'Ayesha Rahman', learner: 'Ayesha Rahman' };
   let passwordChanges = 0;
   let passwordResets = 0;
+  let displayTheme = 'light';
+  const completedResources = new Set();
+  const enrollmentRequests = [
+    { id: id(1101), user: { id: id(111), name: 'Tanvir Hasan' }, userEmail: 'tanvir@example.test', courseId: courses[0].id, courseCode: courses[0].code, courseName: courses[0].name, status: 'pending', requestedAt: '2026-09-20T09:00:00Z', reviewedBy: null, reviewedAt: null, rejectionReason: null },
+    { id: id(1102), user: { id: id(112), name: 'Laila Akter' }, userEmail: 'laila@example.test', courseId: courses[1].id, courseCode: courses[1].code, courseName: courses[1].name, status: 'pending', requestedAt: '2026-09-21T09:00:00Z', reviewedBy: null, reviewedAt: null, rejectionReason: null },
+  ];
   const supportTickets = [];
   const supportMessages = new Map();
   socket.addEventListener('message', event => {
@@ -102,14 +119,46 @@ try {
         } else data = [...academics].sort((a, b) => (a.sequenceOrder ?? 0) - (b.sequenceOrder ?? 0));
       }
       else if (path === '/api/v1/admin/stats') data = { userCount: 48, courseCount: 3, publishedResourceCount: 24, submissionCount: 5 };
+      else if (path === '/api/v1/admin/enrollments') data = enrollmentRequests;
+      else if (path.startsWith('/api/v1/admin/enrollments/')) {
+        const requestRow = enrollmentRequests.find(item => item.id === path.split('/')[5]);
+        assert.ok(requestRow, 'Unknown enrollment request fixture');
+        if (path.endsWith('/approve')) requestRow.status = 'approved';
+        else {
+          const body = JSON.parse(request.postData);
+          assert.ok(body.reason.trim(), 'A rejection reason is required');
+          requestRow.status = 'rejected'; requestRow.rejectionReason = body.reason.trim();
+        }
+        requestRow.reviewedAt = new Date().toISOString();
+        requestRow.reviewedBy = { id: id(103), name: profileNames.admin };
+        data = requestRow;
+      }
       else if (path.includes('/attachment')) data = { fileUrl: null, fileName: null, mimeType: null, externalUrl: 'https://example.test/material' };
       else if (path === '/api/v1/admin/submissions' || path === '/api/v1/submissions/mine') data = submissions;
       else if (path === '/api/v1/admin/users') data = [{ id: id(111), name: 'Tanvir Hasan', email: 'tanvir@example.test', username: 'tanvir', role: 'learner', universityName: university.name, registeredAt: '2026-09-14T10:00:00Z' }];
       else if (path === '/api/v1/courses') data = courses;
+      else if (path === `/api/v1/courses/${courses[0].id}`) data = courses[0];
       else if (path.endsWith('/semesters')) data = [semester];
       else if (path.endsWith('/topics')) data = [{ id: id(501), name: 'Core concepts', courseId: courses[0].id, sequenceOrder: 1, subtopics: [] }];
+      else if (path === `/api/v1/topics/${id(501)}/resources`) data = [{ id: id(601), topicId: id(501), courseId: courses[0].id, type: 'question', title: 'Graph practice set', description: 'Reviewed graph exercises.', addedBy: { id: id(102), name: 'Ayesha Rahman' }, year: 2026, topicsCovered: ['Graphs'], fileSizeBytes: null, views: 12, downloads: 4, uploadedAt: '2026-09-14T10:00:00Z' }];
       else if (path === '/api/v1/universities') data = [university];
-      else if (path === '/api/v1/me/learning') data = { courses: courses.map((course, i) => ({ ...course, courseId: course.id, enrollmentId: id(1001 + i), progressPercent: [65, 35, 10][i], status: 'active' })), topics: [{ id: id(1501), topicId: id(501), courseId: id(401), courseName: courses[0].name, courseCode: courses[0].code, topicName: 'Graph traversal', progressPercent: 65, completed: false }] };
+      else if (path === '/api/v1/me/learning') {
+        const touched = completedResources.has(id(601));
+        data = { courses: courses.map((course, i) => ({ ...course, courseId: course.id, enrollmentId: id(1001 + i), progressPercent: i === 0 && touched ? 100 : 0, status: 'active' })), topics: touched ? [{ id: id(501), topicId: id(501), courseId: id(401), courseName: courses[0].name, courseCode: courses[0].code, topicName: 'Core concepts', progressPercent: 100, completed: true, lastAccessedAt: new Date().toISOString() }] : [], enrollmentRequests: courses.map((course, i) => ({ id: id(1001 + i), user: { id: id(101), name: profileNames[role] }, userEmail: 'ayesha@example.test', courseId: course.id, courseCode: course.code, courseName: course.name, status: 'approved', requestedAt: '2026-09-01T00:00:00Z', reviewedBy: null, reviewedAt: '2026-09-01T00:00:00Z', rejectionReason: null })) };
+      }
+      else if (path === '/api/v1/me/continue-learning') data = { href: `/courses/${courses[0].id}/topics/${id(501)}`, courseId: courses[0].id, topicId: id(501) };
+      else if (path === '/api/v1/me/preferences') {
+        if (request.method === 'PUT') displayTheme = JSON.parse(request.postData).theme;
+        data = { theme: displayTheme };
+      }
+      else if (path === '/api/v1/me/resource-completions') data = [...completedResources].map(resourceId => ({ resourceId, completed: true }));
+      else if (path.startsWith('/api/v1/me/resource-completions/')) {
+        const resourceId = path.split('/').at(-1);
+        const { completed } = JSON.parse(request.postData);
+        if (completed) completedResources.add(resourceId); else completedResources.delete(resourceId);
+        data = { resourceId, completed };
+      }
+      else if (path === '/api/v1/me/folder-activity') data = null;
       else if (path === '/api/v1/me/access-history') data = submissions.slice(0, 3).map(row => ({ id: row.id, resourceId: row.id, resourceTitle: row.title, resourceType: row.resourceType, accessedAt: row.submittedAt }));
       else if (path === '/api/v1/admin/courses' && request.method === 'POST') { const body = JSON.parse(request.postData); assert.equal(body.code, 'CSE-999'); created = true; data = { id: id(999) }; }
       void send('Fetch.fulfillRequest', { requestId, responseCode: request.method === 'POST' ? 201 : 200, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify({ data })).toString('base64') }).catch(error => {
@@ -119,19 +168,67 @@ try {
       });
     }
   });
-  await send('Page.enable'); await send('Runtime.enable');
+  await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable');
   await send('Fetch.enable', { patterns: [{ urlPattern: `${origin}/api/v1/*` }] });
   async function evaluate(expression) { return (await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })).result.value; }
   async function waitFor(expression) { for (let i = 0; i < 150; i++) { if (await evaluate(`Boolean(${expression})`)) return; await delay(200); } throw new Error(`Timed out: ${expression}. Page: ${await evaluate('document.body.innerText.slice(-1600)')}`); }
-  async function navigate(path) { await send('Page.navigate', { url: origin + path }); await waitFor(`document.querySelector('.workspace-${role}') && !document.body.innerText.includes('Loading CourseDekho')`); await delay(1200); }
+  async function authenticate() {
+    if (role === 'guest' || authenticatedRole === role) return;
+    const response = await fetch(`${origin}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(credentials[role]),
+    });
+    assert.equal(response.status, 200, `Unable to authenticate ${role} for browser verification`);
+    const session = response.headers.get('set-cookie')?.match(/course_dekho_session=([^;]+)/)?.[1];
+    assert.ok(session, `Missing ${role} session cookie`);
+    const cookie = await send('Network.setCookie', { name: 'course_dekho_session', value: session, url: origin, httpOnly: true, sameSite: 'Strict' });
+    assert.equal(cookie.success, true, `Unable to set ${role} session cookie`);
+    authenticatedRole = role;
+  }
+  async function navigate(path) { await authenticate(); await send('Page.navigate', { url: origin + path }); await waitFor(`document.querySelector('.workspace-${role}') && !document.body.innerText.includes('Loading CourseDekho')`); await delay(1200); }
   async function screenshot(name) { const result = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); await writeFile(resolve(output, name + '.png'), Buffer.from(result.data, 'base64')); }
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1040, deviceScaleFactor: 1, mobile: false });
   for (role of ['admin', 'contributor', 'learner']) {
     await navigate('/dashboard');
     await screenshot(role + '-desktop');
     assert.equal(await evaluate('document.documentElement.scrollWidth > window.innerWidth'), false, `${role} overflow`);
-    console.log(`PASS: ${role} desktop dashboard rendered without horizontal overflow`);
+    assert.equal(await evaluate(`(() => { const workspace = document.querySelector('.workspace'); return workspace.scrollHeight > workspace.clientHeight; })()`), false, `${role} workspace clips vertical content`);
+    console.log(`PASS: ${role} desktop dashboard rendered without horizontal or clipped vertical overflow`);
   }
+  await navigate(`/courses/${courses[0].id}`);
+  await waitFor(`document.body.innerText.includes('Progress is calculated from completed resources in this topic.')`);
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('.course-navigation')).display`), 'none', 'learner desktop duplicates course navigation in the top bar');
+  assert.equal(await evaluate(`!![...document.querySelectorAll('main button')].find(button => button.textContent.includes('Mark topic complete'))`), false, 'manual topic completion control is still visible');
+  assert.equal(await evaluate('document.documentElement.scrollWidth > window.innerWidth'), false, 'learner course page overflow');
+  await screenshot('learner-course-desktop');
+  console.log('PASS: learner course page hides duplicate header links and exposes topic completion');
+  await navigate(`/courses/${courses[0].id}/topics/${id(501)}`);
+  await waitFor(`document.body.innerText.includes('Graph practice set')`);
+  assert.equal(await evaluate(`!![...document.querySelectorAll('th')].find(cell => cell.textContent.trim() === 'Year')`), false, 'topic resources still expose a Year column');
+  assert.equal(await evaluate(`(() => { const completion = document.querySelector('[aria-label="Mark Graph practice set complete"]'); const bookmark = document.querySelector('[title="Bookmark this resource"]'); return Boolean(completion && bookmark && (completion.compareDocumentPosition(bookmark) & Node.DOCUMENT_POSITION_FOLLOWING)); })()`), true, 'resource completion control must precede bookmark');
+  await evaluate(`document.querySelector('[aria-label="Mark Graph practice set complete"]').click()`);
+  await waitFor(`document.querySelector('[aria-label="Mark Graph practice set complete"]').checked`);
+  await waitFor(`document.body.innerText.includes('100% complete')`);
+  await screenshot('learner-topic-resources-desktop');
+  await navigate('/progress');
+  await clickButton('By topics');
+  await waitFor(`document.body.innerText.includes('Core concepts')`);
+  assert.equal(await evaluate(`document.querySelector('main select') === null`), true, 'manual topic progress dropdown is still visible');
+  await screenshot('learner-progress-topics-desktop');
+  console.log('PASS: resource completion derives topic progress, touched topics only, with no manual dropdown');
+  role = 'admin'; await navigate('/admin/enrollments');
+  await waitFor(`document.body.innerText.includes('Tanvir Hasan') && document.body.innerText.includes('Laila Akter')`);
+  await evaluate(`[...document.querySelectorAll('article')].find(row => row.textContent.includes('Tanvir Hasan')).querySelector('button').click()`);
+  await waitFor(`[...document.querySelectorAll('article')].find(row => row.textContent.includes('Tanvir Hasan')).textContent.includes('approved')`);
+  await evaluate(`[...document.querySelectorAll('article')].find(row => row.textContent.includes('Laila Akter')).querySelectorAll('button')[1].click()`);
+  await clickButton('Confirm rejection');
+  await waitFor(`document.body.innerText.includes('Enter a rejection reason.')`);
+  await evaluate(`(() => { const textarea = document.querySelector('textarea'); const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set; setter.call(textarea, 'Course access is not eligible yet'); textarea.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await clickButton('Confirm rejection');
+  await waitFor(`[...document.querySelectorAll('article')].find(row => row.textContent.includes('Laila Akter')).textContent.includes('rejected')`);
+  await screenshot('admin-enrollment-review-desktop');
+  console.log('PASS: admin approves requests and rejection requires and records a reason');
   role = 'admin'; await navigate('/admin/courses');
   async function choose(label, value) {
     await evaluate(`(() => { const select = [...document.querySelectorAll('label')].find(label => label.textContent.startsWith(${JSON.stringify(label)})).querySelector('select'); select.value = ${JSON.stringify(value)}; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
@@ -196,11 +293,12 @@ try {
   await screenshot('contributor-submission-form');
   console.log('PASS: contributor attachment form opens');
   await navigate('/settings');
-  await evaluate(`(() => { const input = document.querySelector('input[role=switch]'); if (!input.checked) input.click(); })()`);
-  await waitFor(`document.documentElement.dataset.density === 'compact'`);
+  await evaluate(`[...document.querySelectorAll('button')].find(button => button.textContent.trim().startsWith('Dark')).click()`);
+  await waitFor(`document.documentElement.dataset.theme === 'dark'`);
   await navigate('/settings');
-  assert.equal(await evaluate(`document.documentElement.dataset.density`), 'compact');
-  console.log('PASS: display preference applies and survives navigation');
+  assert.equal(await evaluate(`document.documentElement.dataset.theme`), 'dark');
+  assert.equal(await evaluate(`[...document.querySelectorAll('button')].find(button => button.textContent.trim().startsWith('Dark')).getAttribute('aria-pressed')`), 'true');
+  console.log('PASS: database-backed theme preference applies and survives navigation');
   for (role of ['admin', 'contributor', 'learner']) {
     await navigate('/profile');
     await clickButton('Edit profile');

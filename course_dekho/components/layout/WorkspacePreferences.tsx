@@ -1,12 +1,20 @@
 "use client";
-import { useEffect } from 'react';
-import { usePreferences } from '@/lib/client/preferences';
+
+import { useEffect } from "react";
+import { getDisplayPreference } from "@/lib/client/workspace-api";
+import { useDatabaseData } from "@/lib/client/use-database-data";
+
 export function WorkspacePreferences({ userId }: { userId: string }) {
-  const { preferences } = usePreferences(userId);
+  const preference = useDatabaseData(
+    `display-preference:${userId}`,
+    getDisplayPreference,
+    { theme: "light" as const }
+  );
+
   useEffect(() => {
-    document.documentElement.dataset.density = preferences.compact ? 'compact' : 'comfortable';
-    document.documentElement.dataset.reduceMotion = String(preferences.reduceMotion);
-    return () => { delete document.documentElement.dataset.density; delete document.documentElement.dataset.reduceMotion; };
-  }, [preferences.compact, preferences.reduceMotion]);
+    if (preference.isLoading || preference.error) return;
+    document.documentElement.dataset.theme = preference.data.theme;
+  }, [preference.data.theme, preference.error, preference.isLoading]);
+
   return null;
 }

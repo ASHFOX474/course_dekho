@@ -36,6 +36,9 @@ test("the canonical migration chain is ordered, forward-only, and non-destructiv
       "0011_admin_resource_links.sql",
       "0012_admin_resource_reclassification.sql",
       "0013_checklist_routines.sql",
+      "0014_learner_enrollment_activity.sql",
+      "0015_learner_activity_fk_indexes.sql",
+      "0016_resource_derived_progress.sql",
     ]
   );
 
@@ -82,6 +85,9 @@ test("public identities use UUIDs while relational joins use bigint identity key
     "bookmark",
     "content_access",
     "solved_question",
+    "resource_completion",
+    "learning_folder_activity",
+    "user_display_preference",
   ]) {
     const tablePattern = new RegExp(
       `CREATE TABLE coursedekho\\.${table} \\([\\s\\S]*?id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY[\\s\\S]*?public_id UUID NOT NULL DEFAULT gen_random_uuid\\(\\) UNIQUE`,
@@ -129,6 +135,32 @@ test("teacher learning and polymorphic bookmarks retain relational integrity", a
   assert.match(sql, /CREATE UNIQUE INDEX uq_bookmark_user_course[\s\S]*?WHERE course_id IS NOT NULL/i);
   assert.match(sql, /CREATE UNIQUE INDEX uq_bookmark_user_topic[\s\S]*?WHERE topic_id IS NOT NULL/i);
   assert.match(sql, /CREATE UNIQUE INDEX uq_bookmark_user_content[\s\S]*?WHERE content_id IS NOT NULL/i);
+});
+
+test("enrollment review and learner activity state are additive and constrained", async () => {
+  const sql = await readFile(new URL("0014_learner_enrollment_activity.sql", migrationsDirectory), "utf8");
+
+  assert.match(sql, /CREATE TYPE coursedekho\.enrollment_review_status[\s\S]*?'pending'[\s\S]*?'approved'[\s\S]*?'rejected'/i);
+  assert.match(sql, /ALTER TABLE coursedekho\.enrollment[\s\S]*?reviewed_by_user_id[\s\S]*?rejection_reason/i);
+  assert.match(sql, /review_status coursedekho\.enrollment_review_status NOT NULL DEFAULT 'approved'/i);
+  assert.match(sql, /ALTER COLUMN review_status SET DEFAULT 'pending'[\s\S]*?ALTER COLUMN reviewed_at DROP DEFAULT/i);
+  assert.doesNotMatch(sql, /UPDATE coursedekho\.enrollment/i);
+  assert.match(sql, /CONSTRAINT enrollment_review_state CHECK/i);
+  assert.match(sql, /CREATE TABLE coursedekho\.resource_completion[\s\S]*?UNIQUE \(user_id, content_id\)/i);
+  assert.match(sql, /CREATE TABLE coursedekho\.learning_folder_activity[\s\S]*?user_id BIGINT[\s\S]*?UNIQUE/i);
+  assert.match(sql, /CREATE TABLE coursedekho\.user_display_preference[\s\S]*?theme IN \('light', 'dark'\)/i);
+});
+
+test("topic and course progress are derived from approved topic-resource completions", async () => {
+  const sql = await readFile(new URL("0016_resource_derived_progress.sql", migrationsDirectory), "utf8");
+
+  assert.match(sql, /CREATE FUNCTION coursedekho\.calculate_topic_progress/i);
+  assert.match(sql, /count\(completion\.id\)::numeric \* 100[\s\S]*?NULLIF\(count\(content\.id\), 0\)/i);
+  assert.match(sql, /submission\.status = 'approved'/i);
+  assert.match(sql, /content\.resource_type IN \('tutorial', 'question', 'leetcode_problem'\)/i);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION coursedekho\.calculate_course_progress/i);
+  assert.match(sql, /coursedekho\.calculate_topic_progress\(p_user_id, topic\.id\)/i);
+  assert.doesNotMatch(sql, /topic_progress AS progress/i);
 });
 
 test("content publication is revisioned and review lifecycle constraints are explicit", async () => {
@@ -193,6 +225,14 @@ test("query paths and every important foreign-key direction have supporting inde
     "idx_content_access_user_recent",
     "idx_solved_question_user_recent",
     "idx_audit_event_entity_recent",
+    "idx_enrollment_review_queue",
+    "idx_enrollment_user_review",
+    "idx_resource_completion_user_recent",
+    "idx_learning_folder_activity_user_recent",
+    "idx_enrollment_reviewed_by_user",
+    "idx_resource_completion_content",
+    "idx_learning_folder_activity_course",
+    "idx_learning_folder_activity_topic",
   ]) {
     assert.match(sql, new RegExp(`CREATE (?:UNIQUE )?INDEX ${indexName}\\b`, "i"), `missing ${indexName}`);
   }

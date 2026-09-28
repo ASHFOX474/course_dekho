@@ -55,7 +55,7 @@ Confirmed application paths currently outside explicit transaction wrappers:
 | File | Operations to wrap |
 |---|---|
 | `lib/server/auth/service.ts` | `logout`, `approveUser`, `rejectUser` |
-| `lib/server/workspace/service.ts` | `createBookmark`, `deleteBookmark`, `createEnrollment`, `updateProgress`, `recordAccess`, `markSolved`, `createSubmission`, `removeResource` |
+| `lib/server/workspace/service.ts` | `createBookmark`, `deleteBookmark`, `createEnrollment`, `setResourceCompletion`, `recordAccess`, `markSolved`, `createSubmission`, `removeResource` |
 | `lib/server/catalog/admin-http-handlers.ts` | Existing POST course-creation INSERT; update its dependency/runtime wiring to support a transaction client. |
 
 Registration, login/session rotation, user deactivation, submission review, resource editing/link publication, account updates, support writes, and academic-management mutations already have explicit wrappers. Preserve these; do not add nested BEGIN calls.

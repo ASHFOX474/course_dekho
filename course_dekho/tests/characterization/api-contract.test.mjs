@@ -60,6 +60,7 @@ test("contract freezes status, resource-type, and error enums", async () => {
 
   assert.deepEqual(schemas.UserRole.enum, [...userRoles]);
   assert.deepEqual(schemas.EnrollmentStatus.enum, ["active", "completed", "dropped"]);
+  assert.deepEqual(schemas.EnrollmentReviewStatus.enum, ["pending", "approved", "rejected"]);
   assert.deepEqual(schemas.SubmissionStatus.enum, ["pending", "approved", "rejected"]);
   assert.deepEqual(schemas.ResourceType.enum, [
     "study_material",
@@ -74,6 +75,19 @@ test("contract freezes status, resource-type, and error enums", async () => {
   assert.ok(schemas.ApiError.properties.error.properties.code.enum.includes("INVALID_TRANSITION"));
 });
 
+test("enrollment review, resource completion, continuation, and theme APIs are explicit", async () => {
+  const contract = await loadContract();
+  assert.ok(contract.paths["/api/v1/admin/enrollments"].get);
+  assert.ok(contract.paths["/api/v1/admin/enrollments/{enrollmentId}/approve"].post);
+  assert.ok(contract.paths["/api/v1/admin/enrollments/{enrollmentId}/reject"].post);
+  assert.ok(contract.paths["/api/v1/me/resource-completions/{resourceId}"].put);
+  assert.ok(contract.paths["/api/v1/me/continue-learning"].get);
+  assert.ok(contract.paths["/api/v1/me/folder-activity"].post);
+  assert.ok(contract.paths["/api/v1/me/preferences"].put);
+  assert.equal(contract.components.schemas.EnrollmentRequest.properties.status.$ref, "#/components/schemas/EnrollmentReviewStatus");
+  assert.deepEqual(contract.components.schemas.DisplayPreference.properties.theme.enum, ["light", "dark"]);
+});
+
 test("contract freezes the role permission matrix", async () => {
   const contract = await loadContract();
 
@@ -84,6 +98,7 @@ test("contract freezes the role permission matrix", async () => {
       "track_progress",
       "solve_question",
       "view_learning_history",
+      "manage_preferences",
     ],
     contributor: [
       "browse_approved_content",
@@ -91,6 +106,7 @@ test("contract freezes the role permission matrix", async () => {
       "track_progress",
       "solve_question",
       "view_learning_history",
+      "manage_preferences",
       "submit_content",
       "view_own_submissions",
     ],
@@ -101,6 +117,8 @@ test("contract freezes the role permission matrix", async () => {
       "manage_academic_structure",
       "manage_resources",
       "manage_users",
+      "review_enrollments",
+      "manage_preferences",
     ],
   });
 });

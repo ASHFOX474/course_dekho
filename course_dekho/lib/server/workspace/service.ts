@@ -8,6 +8,7 @@ import { withTransaction } from "../db/transaction.ts";
 import type {
   AuthenticatedUser,
   BookmarkTargetType,
+  DisplayTheme,
   ResourceType,
 } from "../domain/models.ts";
 import {
@@ -77,17 +78,75 @@ export class WorkspaceService {
 
   async createEnrollment(actor: AuthenticatedUser, courseId: string) {
     requireRole(actor, learnerRoles);
-    const id = await this.repository().createEnrollment(actor.id, courseId);
-    if (!id) throw new NotFoundError("Active course not found.");
-    return { id };
+    const enrollment = await this.repository().createEnrollment(actor.id, courseId);
+    if (!enrollment) throw new NotFoundError("Active course not found.");
+    return enrollment;
   }
 
-  async updateProgress(actor: AuthenticatedUser, topicId: string, progressPercent: number) {
-    requireRole(actor, learnerRoles);
-    if (!(await this.repository().updateProgress(actor.id, topicId, progressPercent, this.now()))) {
-      throw new ConflictError("Progress requires an active enrollment for this topic's course.");
+  async listEnrollmentRequests(actor: AuthenticatedUser) {
+    requireRole(actor, ["admin"]);
+    return this.repository().listEnrollmentRequestsForAdmin();
+  }
+
+  async reviewEnrollment(actor: AuthenticatedUser, enrollmentId: string, decision: "approved" | "rejected", reason: string | null) {
+    requireRole(actor, ["admin"]);
+    if (decision === "rejected" && !reason?.trim()) {
+      throw new ValidationError("A rejection reason is required.", { reason: ["Enter a rejection reason."] });
     }
-    return this.repository().getLearning(actor.id);
+    return withTransaction(this.pool, async client => {
+      const repository = this.repositoryFactory(client);
+      if (await repository.reviewEnrollment({
+        enrollmentId,
+        reviewerId: actor.id,
+        decision,
+        reason: decision === "rejected" ? reason!.trim() : null,
+        reviewedAt: this.now(),
+      })) {
+        const reviewed = (await repository.listEnrollmentRequestsForAdmin()).find(item => item.id === enrollmentId);
+        if (reviewed) return reviewed;
+      }
+      const existing = (await repository.listEnrollmentRequestsForAdmin()).find(item => item.id === enrollmentId);
+      if (!existing) throw new NotFoundError("Enrollment request not found.");
+      throw new InvalidTransitionError("Only pending enrollment requests can be reviewed.");
+    });
+  }
+
+  async listResourceCompletions(actor: AuthenticatedUser, topicId: string) {
+    requireRole(actor, learnerRoles);
+    return this.repository().listResourceCompletions(actor.id, topicId);
+  }
+
+  async setResourceCompletion(actor: AuthenticatedUser, resourceId: string, completed: boolean) {
+    requireRole(actor, learnerRoles);
+    if (!(await this.repository().setResourceCompletion(actor.id, resourceId, completed, this.now()))) {
+      throw new ConflictError("Resource completion requires an approved enrollment and an approved active resource.");
+    }
+    return { resourceId, completed };
+  }
+
+  async recordFolderActivity(actor: AuthenticatedUser, courseId: string, topicId: string | null): Promise<void> {
+    requireRole(actor, learnerRoles);
+    if (!(await this.repository().recordFolderActivity(actor.id, courseId, topicId, this.now()))) {
+      throw new ConflictError("Folder activity requires an approved active enrollment.");
+    }
+  }
+
+  async getContinueLearning(actor: AuthenticatedUser) {
+    requireRole(actor, learnerRoles);
+    return this.repository().getContinueLearning(actor.id);
+  }
+
+  async getDisplayPreference(actor: AuthenticatedUser) {
+    requireRole(actor, allRoles);
+    return { theme: await this.repository().getDisplayPreference(actor.id) };
+  }
+
+  async updateDisplayPreference(actor: AuthenticatedUser, theme: DisplayTheme) {
+    requireRole(actor, allRoles);
+    if (!(await this.repository().updateDisplayPreference(actor.id, theme, this.now()))) {
+      throw new NotFoundError("Account not found.");
+    }
+    return { theme };
   }
 
   async listAccessHistory(actor: AuthenticatedUser) {

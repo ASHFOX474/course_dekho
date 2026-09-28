@@ -14,15 +14,17 @@
   "x-contract-owner": "CourseDekho maintainers",
   "x-compatibility": "Within /api/v1, optional fields and enum values may only be added after consumer review. Required-field changes, field removal, or semantic repurposing require a new API version.",
   "x-role-permissions": {
-    "learner": ["browse_approved_content", "bookmark_content", "track_progress", "solve_question", "view_learning_history"],
-    "contributor": ["browse_approved_content", "bookmark_content", "track_progress", "solve_question", "view_learning_history", "submit_content", "view_own_submissions"],
+    "learner": ["browse_approved_content", "bookmark_content", "track_progress", "solve_question", "view_learning_history", "manage_preferences"],
+    "contributor": ["browse_approved_content", "bookmark_content", "track_progress", "solve_question", "view_learning_history", "manage_preferences", "submit_content", "view_own_submissions"],
     "admin": [
       "browse_approved_content",
       "approve_submission",
       "reject_submission",
       "manage_academic_structure",
       "manage_resources",
-      "manage_users"
+      "manage_users",
+      "review_enrollments",
+      "manage_preferences"
     ]
   },
   "paths": {
@@ -346,8 +348,8 @@
     "/api/v1/enrollments": {
       "post": {
         "operationId": "enrollInCourse",
-        "summary": "Explicitly enroll the authenticated learner in a course",
-        "description": "The provider derives userId from the session. Student and teacher roles may enroll. Progress never creates enrollment implicitly.",
+        "summary": "Create a pending enrollment request for the authenticated learner",
+        "description": "The provider derives userId and request time from the session. Duplicate learner/course rows are prevented. Progress never creates enrollment implicitly.",
         "x-permission": "track_progress",
         "security": [{ "SessionCookie": [] }],
         "requestBody": {
@@ -360,10 +362,10 @@
         },
         "responses": {
           "201": {
-            "description": "Enrollment created or a dropped enrollment reactivated",
+            "description": "Pending enrollment request created or existing request returned",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/EnrollmentResponse" }
+                "schema": { "$ref": "#/components/schemas/EnrollmentRequestResponse" }
               }
             }
           },
@@ -373,6 +375,110 @@
           "409": { "$ref": "#/components/responses/Conflict" },
           "422": { "$ref": "#/components/responses/ValidationError" }
         }
+      }
+    },
+    "/api/v1/admin/enrollments": {
+      "get": {
+        "operationId": "listEnrollmentRequests",
+        "summary": "List enrollment requests for admin review",
+        "x-permission": "review_enrollments",
+        "security": [{ "SessionCookie": [] }],
+        "responses": {
+          "200": { "description": "Enrollment review queue", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EnrollmentRequestListResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" }
+        }
+      }
+    },
+    "/api/v1/admin/enrollments/{enrollmentId}/approve": {
+      "post": {
+        "operationId": "approveEnrollmentRequest",
+        "summary": "Approve one pending enrollment request",
+        "x-permission": "review_enrollments",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/EnrollmentId" }],
+        "responses": {
+          "200": { "description": "Approved enrollment", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EnrollmentRequestResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/InvalidTransition" }
+        }
+      }
+    },
+    "/api/v1/admin/enrollments/{enrollmentId}/reject": {
+      "post": {
+        "operationId": "rejectEnrollmentRequest",
+        "summary": "Reject one pending enrollment request with a reason",
+        "x-permission": "review_enrollments",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/EnrollmentId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RejectSubmissionRequest" } } } },
+        "responses": {
+          "200": { "description": "Rejected enrollment", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EnrollmentRequestResponse" } } } },
+          "400": { "$ref": "#/components/responses/ValidationError" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/InvalidTransition" }
+        }
+      }
+    },
+    "/api/v1/me/continue-learning": {
+      "get": {
+        "operationId": "getContinueLearning",
+        "summary": "Resolve the latest approved learning folder with enrollment fallback",
+        "x-permission": "track_progress",
+        "security": [{ "SessionCookie": [] }],
+        "responses": { "200": { "description": "Continuation target", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ContinueLearningResponse" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/me/folder-activity": {
+      "post": {
+        "operationId": "recordFolderActivity",
+        "summary": "Persist the learner's latest approved course or topic folder",
+        "x-permission": "track_progress",
+        "security": [{ "SessionCookie": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FolderActivityRequest" } } } },
+        "responses": { "204": { "description": "Folder activity recorded" }, "400": { "$ref": "#/components/responses/ValidationError" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/me/resource-completions": {
+      "get": {
+        "operationId": "listResourceCompletions",
+        "summary": "List completed approved topic resources used to derive progress",
+        "x-permission": "track_progress",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [{ "name": "topicId", "in": "query", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "Completed resources", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResourceCompletionListResponse" } } } }, "400": { "$ref": "#/components/responses/ValidationError" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" } }
+      }
+    },
+    "/api/v1/me/resource-completions/{resourceId}": {
+      "put": {
+        "operationId": "setResourceCompletion",
+        "summary": "Idempotently set completion for one approved topic resource and derive progress",
+        "x-permission": "track_progress",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/ResourceId" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResourceCompletionRequest" } } } },
+        "responses": { "200": { "description": "Completion state", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ResourceCompletionResponse" } } } }, "400": { "$ref": "#/components/responses/ValidationError" }, "401": { "$ref": "#/components/responses/Unauthorized" }, "403": { "$ref": "#/components/responses/Forbidden" }, "409": { "$ref": "#/components/responses/Conflict" } }
+      }
+    },
+    "/api/v1/me/preferences": {
+      "get": {
+        "operationId": "getDisplayPreference",
+        "summary": "Read the authenticated user's display theme",
+        "x-permission": "manage_preferences",
+        "security": [{ "SessionCookie": [] }],
+        "responses": { "200": { "description": "Display preference", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DisplayPreferenceResponse" } } } }, "401": { "$ref": "#/components/responses/Unauthorized" } }
+      },
+      "put": {
+        "operationId": "updateDisplayPreference",
+        "summary": "Persist the authenticated user's display theme",
+        "x-permission": "manage_preferences",
+        "security": [{ "SessionCookie": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DisplayPreference" } } } },
+        "responses": { "200": { "description": "Saved display preference", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DisplayPreferenceResponse" } } } }, "400": { "$ref": "#/components/responses/ValidationError" }, "401": { "$ref": "#/components/responses/Unauthorized" } }
       }
     },
     "/api/v1/enrollments/{courseId}": {
@@ -588,6 +694,13 @@
         "required": true,
         "description": "Opaque submission identifier; consumers must not parse it as a number.",
         "schema": { "type": "string", "minLength": 1 }
+      },
+      "EnrollmentId": {
+        "name": "enrollmentId",
+        "in": "path",
+        "required": true,
+        "description": "Canonical public enrollment UUID.",
+        "schema": { "type": "string", "format": "uuid" }
       }
     },
     "responses": {
@@ -668,6 +781,10 @@
       "EnrollmentStatus": {
         "type": "string",
         "enum": ["active", "completed", "dropped"]
+      },
+      "EnrollmentReviewStatus": {
+        "type": "string",
+        "enum": ["pending", "approved", "rejected"]
       },
       "UserSummary": {
         "type": "object",
@@ -814,6 +931,54 @@
           "status": { "$ref": "#/components/schemas/EnrollmentStatus" },
           "enrolledAt": { "type": "string", "format": "date-time" }
         }
+      },
+      "EnrollmentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "user", "userEmail", "courseId", "courseCode", "courseName", "status", "requestedAt", "reviewedBy", "reviewedAt", "rejectionReason"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "user": { "$ref": "#/components/schemas/ContributorSummary" },
+          "userEmail": { "type": "string", "format": "email" },
+          "courseId": { "type": "string", "format": "uuid" },
+          "courseCode": { "type": "string", "minLength": 1 },
+          "courseName": { "type": "string", "minLength": 1 },
+          "status": { "$ref": "#/components/schemas/EnrollmentReviewStatus" },
+          "requestedAt": { "type": "string", "format": "date-time" },
+          "reviewedBy": { "oneOf": [{ "$ref": "#/components/schemas/ContributorSummary" }, { "type": "null" }] },
+          "reviewedAt": { "type": ["string", "null"], "format": "date-time" },
+          "rejectionReason": { "type": ["string", "null"] }
+        }
+      },
+      "FolderActivityRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["courseId", "topicId"],
+        "properties": {
+          "courseId": { "type": "string", "format": "uuid" },
+          "topicId": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "ResourceCompletionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["completed"],
+        "properties": { "completed": { "type": "boolean" } }
+      },
+      "ResourceCompletion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["resourceId", "completed"],
+        "properties": {
+          "resourceId": { "type": "string", "format": "uuid" },
+          "completed": { "type": "boolean" }
+        }
+      },
+      "DisplayPreference": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["theme"],
+        "properties": { "theme": { "type": "string", "enum": ["light", "dark"] } }
       },
       "Submission": {
         "type": "object",
@@ -964,6 +1129,42 @@
         "properties": {
           "data": { "$ref": "#/components/schemas/Enrollment" }
         }
+      },
+      "EnrollmentRequestResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": { "data": { "$ref": "#/components/schemas/EnrollmentRequest" } }
+      },
+      "EnrollmentRequestListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/EnrollmentRequest" } } }
+      },
+      "ContinueLearningResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": { "data": { "type": "object", "additionalProperties": false, "required": ["href", "courseId", "topicId"], "properties": { "href": { "type": "string" }, "courseId": { "type": ["string", "null"], "format": "uuid" }, "topicId": { "type": ["string", "null"], "format": "uuid" } } } }
+      },
+      "ResourceCompletionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": { "data": { "$ref": "#/components/schemas/ResourceCompletion" } }
+      },
+      "ResourceCompletionListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/ResourceCompletion" } } }
+      },
+      "DisplayPreferenceResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["data"],
+        "properties": { "data": { "$ref": "#/components/schemas/DisplayPreference" } }
       },
       "SubmissionResponse": {
         "type": "object",

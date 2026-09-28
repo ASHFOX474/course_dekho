@@ -5,6 +5,12 @@
   --foreground: #0f172a;
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #080d18;
+  --foreground: #e5edf8;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -92,6 +98,32 @@ body {
 html[data-density="compact"] .workspace-main { padding:20px; }
 html[data-density="compact"] .workspace table td { padding-top:8px; padding-bottom:8px; }
 html[data-reduce-motion="true"] *, html[data-reduce-motion="true"] *::before, html[data-reduce-motion="true"] *::after { scroll-behavior:auto!important; animation:none!important; transition:none!important; }
+html[data-theme="dark"] .workspace { --surface:#0b1220; color:#e5edf8; }
+html[data-theme="dark"] .workspace-sidebar,
+html[data-theme="dark"] .workspace-topbar,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .course-tile,
+html[data-theme="dark"] .admin-metrics,
+html[data-theme="dark"] .workspace .bg-white { background:#111a2b!important; }
+html[data-theme="dark"] .workspace-admin .workspace-sidebar { background:#070d18!important; }
+html[data-theme="dark"] .workspace-contributor .workspace-sidebar { background:#0b2925!important; }
+html[data-theme="dark"] .workspace .bg-slate-50,
+html[data-theme="dark"] .workspace .bg-slate-50\/70,
+html[data-theme="dark"] .workspace-admin table thead,
+html[data-theme="dark"] .studio-column { background:#172235!important; }
+html[data-theme="dark"] .workspace .bg-slate-100 { background:#233148!important; }
+html[data-theme="dark"] .workspace :where(.text-slate-900,.text-slate-800,.text-slate-700) { color:#e5edf8!important; }
+html[data-theme="dark"] .workspace :where(.text-slate-600,.text-slate-500,.text-slate-400) { color:#9fb0c7!important; }
+html[data-theme="dark"] .workspace :where(.border-slate-50,.border-slate-100,.border-slate-200,.border-slate-300) { border-color:#2b3a51!important; }
+html[data-theme="dark"] .workspace :where(input,select,textarea) { background:#0d1626; color:#edf4ff; border-color:#354763; }
+html[data-theme="dark"] .workspace :where(input,select,textarea)::placeholder { color:#71839b; }
+html[data-theme="dark"] .workspace table tbody tr:hover { background:#172235!important; }
+html[data-theme="dark"] .learning-hero { background:#17213b; }
+html[data-theme="dark"] .learning-hero::after { border-color:#202d50; }
+html[data-theme="dark"] .action-secondary { background:#111a2b; border-color:#354763; color:#d6e1ef; }
+html[data-theme="dark"] .page-title { color:#edf4ff; }
+html[data-theme="dark"] .workspace :where(a,button,input,select,textarea):focus-visible { outline-color:#a5bffc; }
+html[data-theme="dark"] .workspace .bg-red-600 { background:#dc2626!important; color:white!important; }
 @media(min-width:1024px) {
   .workspace-learner { flex-direction:column; }
   .workspace-learner .workspace-navigation { width:100%; height:82px; }
@@ -99,14 +131,19 @@ html[data-reduce-motion="true"] *, html[data-reduce-motion="true"] *::before, ht
   .workspace-learner .workspace-sidebar > a { padding:0; }
   .workspace-learner .workspace-sidebar > div:nth-child(2), .workspace-learner .nav-label { display:none; }
   .workspace-learner .workspace-sidebar nav { display:flex; align-items:center; gap:2px; padding:0; }
+  .workspace-learner .course-navigation { display:none; }
   .workspace-learner .workspace-nav-link { white-space:nowrap; font-size:11px; padding:10px; gap:6px; }
   .workspace-learner .workspace-nav-link svg { width:15px; }
   .workspace-learner .workspace-nav-link.is-active { background:transparent; box-shadow:inset 0 -2px var(--accent); border-radius:0; }
   .workspace-learner .workspace-sidebar > div:last-child { display:flex; border:0; padding:0; }
+  .workspace-learner .learner-account-navigation { align-items:center; gap:4px; }
+  .workspace-learner .learner-profile-link { white-space:nowrap; }
+  .workspace-learner .learner-account-navigation .workspace-nav-link { width:auto; }
   .workspace-learner .workspace-sidebar > div:last-child .workspace-nav-link { font-size:0; gap:0; }
   .workspace-learner .workspace-sidebar > div:last-child .workspace-nav-link span { display:none; }
   .workspace-learner .workspace-sidebar .workspace-nav-link > span.ml-auto { display:none; }
 }
+.workspace-topbar-blended { border-bottom-color:transparent; background:transparent; box-shadow:none; }
 @media(max-width:1023px) {
   .workspace-navigation { display:none; }
   .workspace-navigation.is-open { display:block; position:fixed; inset:0 auto 0 0; width:260px; z-index:50; }

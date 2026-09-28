@@ -5,6 +5,7 @@ import type {
   BookmarkView,
   Course,
   LearningCourse,
+  EnrollmentRequest,
   SemesterSummary,
   SolvedQuestionView,
   Submission,
@@ -20,6 +21,7 @@ import type {
   BookmarkViewRow,
   CourseRow,
   LearningCourseRow,
+  EnrollmentRequestRow,
   SemesterRow,
   SolvedQuestionViewRow,
   SubmissionRow,
@@ -269,6 +271,25 @@ export function learningCourseRowToDomain(row: LearningCourseRow): LearningCours
     status: row.enrollment_status,
     enrolledAt: toValidDate(row.enrolled_at, "enrolled_at"),
     progressPercent: toSafeNonNegativeInteger(row.progress_percent, "progress_percent"),
+  };
+}
+
+export function enrollmentRequestRowToDomain(row: EnrollmentRequestRow): EnrollmentRequest {
+  const reviewer = row.reviewer_public_id && row.reviewer_name
+    ? { id: row.reviewer_public_id, name: row.reviewer_name }
+    : null;
+  return {
+    id: row.enrollment_public_id,
+    user: { id: row.user_public_id, name: row.user_name },
+    userEmail: row.user_email,
+    courseId: row.course_public_id,
+    courseCode: row.course_code,
+    courseName: row.course_name,
+    status: row.review_status,
+    requestedAt: toValidDate(row.requested_at, "requested_at"),
+    reviewedBy: reviewer,
+    reviewedAt: row.reviewed_at ? toValidDate(row.reviewed_at, "reviewed_at") : null,
+    rejectionReason: row.rejection_reason,
   };
 }
 

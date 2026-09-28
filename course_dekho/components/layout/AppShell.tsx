@@ -53,7 +53,7 @@ export function AppShell({
       <a href="#main-content" className="skip-link">Skip to content</a>
       {menuOpen && <button aria-label="Close navigation" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" />}
       <div id="workspace-navigation" className={`workspace-navigation ${menuOpen ? "is-open" : ""}`}><Sidebar courseNavigation={courseNavigation} onNavigate={() => setMenuOpen(false)} /></div>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Topbar title={title} onMenu={() => setMenuOpen(open => !open)} menuOpen={menuOpen} />
         <main id="main-content" className="workspace-main"><div className="workspace-content">
           {roleIsAllowed ? (

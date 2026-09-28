@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { getProfile } from "@/lib/client/workspace-api";
 import { useDatabaseData } from "@/lib/client/use-database-data";
 import { useState, type FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { updateProfile } from '@/lib/client/workspace-api';
 import type { UserProfileDto } from '@/lib/server/api/dtos';
 
@@ -50,6 +51,8 @@ export default function ProfilePage() {
 }
 
 function ProfileEditor({ profile, onSaved }: { profile: UserProfileDto; onSaved: () => Promise<void> }) {
+  const { logout } = useAuth();
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
@@ -65,16 +68,21 @@ function ProfileEditor({ profile, onSaved }: { profile: UserProfileDto; onSaved:
     } catch (err) { setError(err instanceof Error ? err.message : 'Unable to save profile.'); }
     finally { setBusy(false); }
   }
+  async function signOut() {
+    setBusy(true);
+    try { await logout(); router.replace('/login'); }
+    finally { setBusy(false); }
+  }
   return <section className="mt-5 border-t border-slate-100 pt-5">
     {message && <p role="status" className="mb-3 text-sm text-emerald-700">{message}</p>}
     {error && <p role="alert" className="mb-3 text-sm text-rose-600">{error}</p>}
-    {!editing ? <button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => { setEditing(true); setMessage(''); }}>Edit profile</button> : <form onSubmit={submit}>
+    {!editing ? <div className="flex flex-wrap gap-3"><button type="button" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white" onClick={() => { setEditing(true); setMessage(''); }}>Edit profile</button><button type="button" disabled={busy} onClick={() => void signOut()} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">Log out</button></div> : <form onSubmit={submit}>
       <fieldset disabled={busy} className="space-y-4">
         <label className="block text-sm">Name<input name="name" required maxLength={200} defaultValue={profile.user.name} className={inputClass} autoComplete="name" /></label>
         {role !== 'admin' && <label className="block text-sm">Department<input name="department" maxLength={100} defaultValue={profile.department ?? ''} className={inputClass} /></label>}
         {role === 'learner' && <label className="block text-sm">Year of study<select name="yearOfStudy" defaultValue={profile.yearOfStudy ?? ''} className={inputClass}><option value="">Not specified</option>{[1, 2, 3, 4, 5, 6].map(year => <option key={year} value={year}>{year}</option>)}</select></label>}
         {role === 'contributor' && <label className="block text-sm">Designation<input name="designation" maxLength={100} defaultValue={profile.designation ?? ''} className={inputClass} /></label>}
-        <div className="flex gap-3"><button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white" type="submit">{busy ? 'Saving...' : 'Save profile'}</button><button type="button" onClick={() => setEditing(false)}>Cancel</button></div>
+        <div className="flex flex-wrap gap-3"><button className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white" type="submit">{busy ? 'Saving...' : 'Save profile'}</button><button type="button" onClick={() => setEditing(false)}>Cancel</button><button type="button" onClick={() => void signOut()} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">Log out</button></div>
       </fieldset>
     </form>}
   </section>;

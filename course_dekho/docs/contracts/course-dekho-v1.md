@@ -53,17 +53,17 @@ Rejection is allowed only from pending, requires a non-blank reason, and preserv
 
 ## Enrollment semantics
 
-Enrollment is explicit persistent state, not a side effect of viewing a topic or writing progress:
+Enrollment is explicit, admin-reviewed persistent state, not a side effect of viewing a topic or completing a resource:
 
-- Students and teachers may enroll themselves; the provider derives the user from the session.
-- `active` and `completed` count as enrolled. `dropped` does not.
-- Starting or updating progress does not create an enrollment.
-- Dropping a course retains the enrollment row and learning history with status `dropped`.
-- Re-enrolling reactivates the existing user/course relationship rather than inserting a duplicate.
+- Students and teachers may request enrollment for themselves; the provider derives the user from the session.
+- New requests start `pending`. Only an authenticated admin can move a pending request to `approved` or `rejected`.
+- Rejection requires a non-blank reason. Review identity and time are server-derived.
+- Only review-approved rows whose enrollment status is `active` or `completed` count as enrolled. `dropped` does not.
+- Completing a resource does not create an enrollment.
 - The database must enforce one enrollment per user and course.
 
-The frontend now creates enrollment explicitly through `POST /api/v1/enrollments`.
-Progress writes require an existing enrollment and never create one implicitly.
+The frontend creates a pending request through `POST /api/v1/enrollments`; admins review it through `/api/v1/admin/enrollments`.
+Folder activity and resource-completion writes require an approved enrollment and never create one implicitly. Topic progress is read-only and derived from completed approved topic resources divided by all approved active resources in that topic. Course progress is derived from those topic percentages. Resource completion remains separate from bookmarks and solved questions; there is no manual topic-progress write endpoint.
 
 ## API conventions
 

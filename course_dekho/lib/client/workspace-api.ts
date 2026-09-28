@@ -6,8 +6,12 @@ import type {
   CreateBookmarkRequestDto,
   CreateSubmissionRequestDto,
   DirectoryUserDto,
+  DisplayPreferenceDto,
+  ContinueLearningDto,
+  EnrollmentRequestDto,
   LearningOverviewDto,
   PendingUserDto,
+  ResourceCompletionDto,
   SolvedQuestionDto,
   SubmissionDto,
   UserProfileDto,
@@ -102,16 +106,29 @@ export const createBookmark = (input: CreateBookmarkRequestDto) =>
 export const deleteBookmark = (bookmarkId: string) =>
   requestData<void>(`/api/v1/me/bookmarks/${encodeURIComponent(bookmarkId)}`, { method: "DELETE" });
 export const createEnrollment = (courseId: string) =>
-  requestData<{ id: string }>("/api/v1/enrollments", { method: "POST", body: { courseId } });
-export const updateProgress = (topicId: string, progressPercent: number) =>
-  requestData<LearningOverviewDto>(`/api/v1/me/progress/${encodeURIComponent(topicId)}`, {
-    method: "PUT",
-    body: { progressPercent },
-  });
+  requestData<EnrollmentRequestDto>("/api/v1/enrollments", { method: "POST", body: { courseId } });
+export const listEnrollmentRequests = (signal?: AbortSignal) =>
+  requestData<EnrollmentRequestDto[]>("/api/v1/admin/enrollments", { signal });
+export const approveEnrollment = (enrollmentId: string) =>
+  requestData<EnrollmentRequestDto>(`/api/v1/admin/enrollments/${encodeURIComponent(enrollmentId)}/approve`, { method: "POST" });
+export const rejectEnrollment = (enrollmentId: string, reason: string) =>
+  requestData<EnrollmentRequestDto>(`/api/v1/admin/enrollments/${encodeURIComponent(enrollmentId)}/reject`, { method: "POST", body: { reason } });
 export const listAccessHistory = (signal?: AbortSignal) =>
   requestData<AccessHistoryDto[]>("/api/v1/me/access-history", { signal });
 export const recordResourceAccess = (resourceId: string) =>
   requestData<void>(`/api/v1/resources/${encodeURIComponent(resourceId)}/access`, { method: "POST" });
+export const listResourceCompletions = (topicId: string, signal?: AbortSignal) =>
+  requestData<ResourceCompletionDto[]>(`/api/v1/me/resource-completions?topicId=${encodeURIComponent(topicId)}`, { signal });
+export const setResourceCompletion = (resourceId: string, completed: boolean) =>
+  requestData<ResourceCompletionDto>(`/api/v1/me/resource-completions/${encodeURIComponent(resourceId)}`, { method: "PUT", body: { completed } });
+export const recordFolderActivity = (courseId: string, topicId: string | null = null) =>
+  requestData<void>("/api/v1/me/folder-activity", { method: "POST", body: { courseId, topicId } });
+export const getContinueLearning = (signal?: AbortSignal) =>
+  requestData<ContinueLearningDto>("/api/v1/me/continue-learning", { signal });
+export const getDisplayPreference = (signal?: AbortSignal) =>
+  requestData<DisplayPreferenceDto>("/api/v1/me/preferences", { signal });
+export const updateDisplayPreference = (theme: DisplayPreferenceDto["theme"]) =>
+  requestData<DisplayPreferenceDto>("/api/v1/me/preferences", { method: "PUT", body: { theme } });
 export const listSolvedQuestions = (signal?: AbortSignal) =>
   requestData<SolvedQuestionDto[]>("/api/v1/me/solved-questions", { signal });
 export const markResourceSolved = (resourceId: string) =>
@@ -182,8 +199,12 @@ export type {
   AdminStatsDto,
   BookmarkDto,
   DirectoryUserDto,
+  DisplayPreferenceDto,
+  ContinueLearningDto,
+  EnrollmentRequestDto,
   LearningOverviewDto,
   PendingUserDto,
+  ResourceCompletionDto,
   SolvedQuestionDto,
   SubmissionDto,
   UserProfileDto,

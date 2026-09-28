@@ -71,11 +71,73 @@ test("the temporary backend demo route and command are completely removed", asyn
   assert.doesNotMatch(await source("components/layout/Sidebar.tsx"), /Backend Demo|backend-demo/);
 });
 
+test("the shared workspace shell keeps role layouts inside the viewport scroller", async () => {
+  const shell = await source("components/layout/AppShell.tsx");
+  const sidebar = await source("components/layout/Sidebar.tsx");
+  const styles = await source("app/globals.css");
+
+  assert.match(shell, /className="flex min-h-0 min-w-0 flex-1 flex-col"/);
+  assert.match(styles, /\.workspace\s*\{[^}]*height:100dvh;[^}]*overflow:hidden;/);
+  assert.match(styles, /\.workspace-main\s*\{[^}]*flex:1;[^}]*overflow:auto;/);
+  assert.match(styles, /\.workspace-learner\s*\{\s*flex-direction:column;/);
+  assert.match(sidebar, /className="course-navigation mb-6"/);
+  assert.match(styles, /\.workspace-learner \.course-navigation\s*\{\s*display:none;/);
+});
+
+test("learner progress is resource-derived and continuation is server-resolved", async () => {
+  const roadmap = await source("app/courses/[courseId]/page-client.tsx");
+  const topic = await source("app/courses/[courseId]/topics/[topicId]/page-client.tsx");
+  const dashboard = await source("app/dashboard/page-client.tsx");
+  const progress = await source("app/progress/page-client.tsx");
+
+  assert.doesNotMatch(roadmap, /updateProgress|Mark topic complete|Mark as incomplete/);
+  assert.match(roadmap, /Progress is calculated from completed resources in this topic/);
+  assert.match(roadmap, /Pending approval/);
+  assert.match(roadmap, /Enrollment rejected/);
+  assert.doesNotMatch(topic, /updateProgress|>Mark complete</);
+  assert.match(topic, /learning\.refresh\(\)/);
+  assert.match(topic, /% complete/);
+  assert.doesNotMatch(topic, /Topic progress/);
+  assert.match(topic, /setResourceCompletion/);
+  assert.match(topic, /aria-label={`Mark \$\{resource\.title\} complete`}/);
+  assert.match(dashboard, /getContinueLearning/);
+  assert.doesNotMatch(dashboard, /Find your first course/);
+  assert.match(dashboard, /Continue learning/);
+  assert.match(progress, /course\.progressPercent === 100 \? "completed"/);
+  assert.doesNotMatch(progress, /<select|updateProgress/);
+  assert.match(progress, /Progress grows as you complete approved questions, practice resources, and tutorials/);
+});
+
+test("learner navigation, profile logout, resource table, and server theme match the revised UI contract", async () => {
+  const sidebar = await source("components/layout/Sidebar.tsx");
+  const topbar = await source("components/layout/Topbar.tsx");
+  const profile = await source("app/profile/page-client.tsx");
+  const settings = await source("app/settings/page-client.tsx");
+  const topic = await source("app/courses/[courseId]/topics/[topicId]/page-client.tsx");
+  const styles = await source("app/globals.css");
+
+  const learnerStart = sidebar.indexOf("const learnerNavigation");
+  const learnerEnd = sidebar.indexOf("const administration", learnerStart);
+  const learnerItems = sidebar.slice(learnerStart, learnerEnd);
+  assert.match(learnerItems, /label: "Bookmark"/);
+  assert.doesNotMatch(learnerItems, /History|Solved questions/);
+  assert.match(sidebar, /learner-profile-link/);
+  assert.match(topbar, /user\.role !== "learner"/);
+  assert.match(profile, /type="button"/);
+  assert.match(profile, />Log out<\/button>/);
+  assert.match(profile, /onClick=\{\(\) => void signOut\(\)\}/);
+  assert.match(profile, /router\.replace\('\/login'\)/);
+  assert.doesNotMatch(settings, /Compact workspace|Reduce motion/);
+  assert.match(settings, /updateDisplayPreference/);
+  assert.match(styles, /html\[data-theme="dark"\]/);
+  assert.doesNotMatch(topic, />Year<\/th>/);
+  assert.match(topic, /colSpan=\{4\}/);
+});
+
 test("database-backed workspace routes delegate at request time", async () => {
   const routes = new Map([
     ["app/api/v1/me/profile/route.ts", ["GET", "getProfile"]],
     ["app/api/v1/me/learning/route.ts", ["GET", "getLearning"]],
-    ["app/api/v1/me/progress/[topicId]/route.ts", ["PUT", "updateProgress"]],
     ["app/api/v1/me/bookmarks/route.ts", ["GET", "listBookmarks", "POST", "createBookmark"]],
     ["app/api/v1/me/bookmarks/[bookmarkId]/route.ts", ["DELETE", "deleteBookmark"]],
     ["app/api/v1/me/access-history/route.ts", ["GET", "listAccessHistory"]],
@@ -83,6 +145,14 @@ test("database-backed workspace routes delegate at request time", async () => {
     ["app/api/v1/resources/[resourceId]/access/route.ts", ["POST", "recordAccess"]],
     ["app/api/v1/resources/[resourceId]/solved/route.ts", ["POST", "markSolved"]],
     ["app/api/v1/enrollments/route.ts", ["POST", "createEnrollment"]],
+    ["app/api/v1/me/continue-learning/route.ts", ["GET", "getContinueLearning"]],
+    ["app/api/v1/me/folder-activity/route.ts", ["POST", "recordFolderActivity"]],
+    ["app/api/v1/me/resource-completions/route.ts", ["GET", "listResourceCompletions"]],
+    ["app/api/v1/me/resource-completions/[resourceId]/route.ts", ["PUT", "setResourceCompletion"]],
+    ["app/api/v1/me/preferences/route.ts", ["GET", "getDisplayPreference", "PUT", "updateDisplayPreference"]],
+    ["app/api/v1/admin/enrollments/route.ts", ["GET", "listEnrollmentRequests"]],
+    ["app/api/v1/admin/enrollments/[enrollmentId]/approve/route.ts", ["POST", "approveEnrollment"]],
+    ["app/api/v1/admin/enrollments/[enrollmentId]/reject/route.ts", ["POST", "rejectEnrollment"]],
     ["app/api/v1/submissions/route.ts", ["POST", "createSubmission"]],
     ["app/api/v1/submissions/mine/route.ts", ["GET", "listSubmissions"]],
     ["app/api/v1/admin/submissions/route.ts", ["GET", "listSubmissions"]],
@@ -100,10 +170,7 @@ test("database-backed workspace routes delegate at request time", async () => {
 });
 
 test("workspace validation rejects client-owned identity and invalid targets", async () => {
-  const {
-    validateBookmarkRequest,
-    validateProgressRequest,
-  } = await import("../../lib/server/api/validation.ts");
+  const { validateBookmarkRequest } = await import("../../lib/server/api/validation.ts");
 
   assert.deepEqual(validateBookmarkRequest({ targetType: "resource", targetId: resourceId }), {
     targetType: "resource",
@@ -117,8 +184,6 @@ test("workspace validation rejects client-owned identity and invalid targets", a
     () => validateBookmarkRequest({ targetType: "unknown", targetId: "bad" }),
     (error) => error.code === "VALIDATION_ERROR"
   );
-  assert.deepEqual(validateProgressRequest({ progressPercent: 100 }), { progressPercent: 100 });
-  assert.throws(() => validateProgressRequest({ progressPercent: 101 }), /validation/i);
 });
 
 test("workspace SQL is parameterized and preserves approved-content visibility", async () => {
@@ -129,9 +194,9 @@ test("workspace SQL is parameterized and preserves approved-content visibility",
   assert.match(text, /targetType === "resource" \? "content_id" : `\$\{targetType\}_id`/);
   assert.match(text, /submission\.status = 'approved'/);
   assert.match(text, /content\.is_active/);
-  assert.match(text, /ORDER BY[\s\S]*last_accessed_at DESC/i);
+  assert.match(text, /ORDER BY access\.accessed_at DESC, access\.id DESC/i);
   assert.match(text, /FOR UPDATE/);
-  assert.match(text, /\$3::smallint/);
+  assert.match(text, /calculate_topic_progress/);
   assert.match(text, /values:\s*\[/);
 });
 

@@ -42,6 +42,34 @@ const learningRow = {
   enrolled_at: at,
   progress_percent: 60,
 };
+const enrollmentRequestRow = {
+  enrollment_public_id: learningRow.enrollment_public_id,
+  user_public_id: student.id,
+  user_name: student.name,
+  user_email: student.email,
+  course_public_id: courseId,
+  course_code: learningRow.course_code,
+  course_name: learningRow.course_name,
+  review_status: "pending",
+  requested_at: at,
+  reviewer_public_id: null,
+  reviewer_name: null,
+  reviewed_at: null,
+  rejection_reason: null,
+};
+const enrollmentRequest = {
+  id: learningRow.enrollment_public_id,
+  user: { id: student.id, name: student.name },
+  userEmail: student.email,
+  courseId,
+  courseCode: learningRow.course_code,
+  courseName: learningRow.course_name,
+  status: "pending",
+  requestedAt: at,
+  reviewedBy: null,
+  reviewedAt: null,
+  rejectionReason: null,
+};
 const progressRow = {
   progress_public_id: "00000000-0000-4000-8000-000000001101",
   topic_public_id: topicId,
@@ -118,12 +146,20 @@ test("workspace repository executes and maps every database workflow", async () 
       switch (statement.name) {
         case "workspace-profile-v1": return result([profileRow]);
         case "workspace-learning-courses-v2": return result([learningRow]);
-        case "workspace-topic-progress-v1": return result([progressRow]);
+        case "workspace-topic-progress-v2": return result([progressRow]);
+        case "workspace-user-enrollment-requests-v1": return result([enrollmentRequestRow]);
         case "workspace-bookmarks-v1": return result([bookmarkRow]);
         case "workspace-create-resource-bookmark-v1": return result([{ bookmark_public_id: bookmarkId }]);
         case "workspace-delete-bookmark-v1": return result([{ internal_id: "1" }]);
-        case "workspace-create-enrollment-v1": return result([{ enrollment_public_id: learningRow.enrollment_public_id }]);
-        case "workspace-upsert-topic-progress-v1": return result([{ internal_id: "1" }]);
+        case "workspace-create-enrollment-request-v2": return result([{ enrollment_public_id: learningRow.enrollment_public_id }]);
+        case "workspace-admin-enrollment-requests-v1": return result([enrollmentRequestRow]);
+        case "workspace-review-enrollment-v1": return result([{ internal_id: "1" }]);
+        case "workspace-resource-completions-v1": return result([{ content_public_id: resourceId }]);
+        case "workspace-complete-resource-v1": return result([{ internal_id: "1" }]);
+        case "workspace-record-folder-activity-v1": return result([{ internal_id: "1" }]);
+        case "workspace-continue-learning-v1": return result([{ course_public_id: courseId, topic_public_id: topicId }]);
+        case "workspace-display-preference-v1": return result([{ theme: "dark" }]);
+        case "workspace-update-display-preference-v1": return result([{ internal_id: "1" }]);
         case "workspace-access-history-v1": return result([accessRow]);
         case "workspace-record-access-v1": return result([{ internal_id: "1" }]);
         case "workspace-solved-questions-v1": return result([solvedRow]);
@@ -152,8 +188,15 @@ test("workspace repository executes and maps every database workflow", async () 
   assert.equal((await repository.listBookmarks(student.id))[0].id, bookmarkId);
   assert.equal((await repository.createBookmark(student.id, "resource", resourceId)).targetId, resourceId);
   assert.equal(await repository.deleteBookmark(student.id, bookmarkId), true);
-  assert.equal(await repository.createEnrollment(student.id, courseId), learningRow.enrollment_public_id);
-  assert.equal(await repository.updateProgress(student.id, topicId, 60, at), true);
+  assert.equal((await repository.createEnrollment(student.id, courseId)).id, learningRow.enrollment_public_id);
+  assert.equal((await repository.listEnrollmentRequestsForAdmin())[0].status, "pending");
+  assert.equal(await repository.reviewEnrollment({ enrollmentId: learningRow.enrollment_public_id, reviewerId: admin.id, decision: "approved", reason: null, reviewedAt: at }), true);
+  assert.deepEqual(await repository.listResourceCompletions(student.id, topicId), [resourceId]);
+  assert.equal(await repository.setResourceCompletion(student.id, resourceId, true, at), true);
+  assert.equal(await repository.recordFolderActivity(student.id, courseId, topicId, at), true);
+  assert.equal((await repository.getContinueLearning(student.id)).topicId, topicId);
+  assert.equal(await repository.getDisplayPreference(student.id), "dark");
+  assert.equal(await repository.updateDisplayPreference(student.id, "dark", at), true);
   assert.equal((await repository.listAccessHistory(student.id))[0].resourceId, resourceId);
   assert.equal(await repository.recordAccess(student.id, resourceId), true);
   assert.equal((await repository.listSolvedQuestions(student.id))[0].resourceId, resourceId);
@@ -176,7 +219,7 @@ test("workspace service enforces role-scoped success paths over its repository",
     yearOfStudy: 2,
     designation: null,
   };
-  const learning = { courses: [], topics: [] };
+  const learning = { courses: [], topics: [], enrollmentRequests: [] };
   const bookmark = { id: bookmarkId, targetType: "resource", targetId: resourceId, title: "Graph", subtitle: "CSE-211", resourceType: "question", courseId, createdAt: at };
   const submission = {
     id: submissionId,
@@ -200,8 +243,15 @@ test("workspace service enforces role-scoped success paths over its repository",
     async listBookmarks() { return [bookmark]; },
     async createBookmark() { return bookmark; },
     async deleteBookmark() { return true; },
-    async createEnrollment() { return learningRow.enrollment_public_id; },
-    async updateProgress() { return true; },
+    async createEnrollment() { return enrollmentRequest; },
+    async listEnrollmentRequestsForAdmin() { return [enrollmentRequest]; },
+    async reviewEnrollment() { return true; },
+    async listResourceCompletions() { return [resourceId]; },
+    async setResourceCompletion() { return true; },
+    async recordFolderActivity() { return true; },
+    async getContinueLearning() { return { href: `/courses/${courseId}/topics/${topicId}`, courseId, topicId }; },
+    async getDisplayPreference() { return "dark"; },
+    async updateDisplayPreference() { return true; },
     async listAccessHistory() { return []; },
     async recordAccess() { return true; },
     async listSolvedQuestions() { return []; },
@@ -223,8 +273,15 @@ test("workspace service enforces role-scoped success paths over its repository",
   assert.equal((await service.listBookmarks(student))[0], bookmark);
   assert.equal(await service.createBookmark(student, { targetType: "resource", targetId: resourceId }), bookmark);
   await service.deleteBookmark(student, bookmarkId);
-  assert.deepEqual(await service.createEnrollment(student, courseId), { id: learningRow.enrollment_public_id });
-  assert.equal(await service.updateProgress(student, topicId, 60), learning);
+  assert.equal(await service.createEnrollment(student, courseId), enrollmentRequest);
+  assert.equal((await service.listEnrollmentRequests(admin))[0], enrollmentRequest);
+  assert.equal(await service.reviewEnrollment(admin, enrollmentRequest.id, "approved", null), enrollmentRequest);
+  assert.deepEqual(await service.listResourceCompletions(student, topicId), [resourceId]);
+  assert.deepEqual(await service.setResourceCompletion(student, resourceId, true), { resourceId, completed: true });
+  await service.recordFolderActivity(student, courseId, topicId);
+  assert.equal((await service.getContinueLearning(student)).topicId, topicId);
+  assert.deepEqual(await service.getDisplayPreference(student), { theme: "dark" });
+  assert.deepEqual(await service.updateDisplayPreference(student, "dark"), { theme: "dark" });
   assert.deepEqual(await service.listAccessHistory(student), []);
   await service.recordAccess(student, resourceId);
   assert.deepEqual(await service.listSolvedQuestions(student), []);
@@ -235,6 +292,25 @@ test("workspace service enforces role-scoped success paths over its repository",
   assert.equal(await service.approveSubmission(admin, submissionId), submission);
   assert.equal(await service.rejectSubmission(admin, submissionId, "Duplicate"), submission);
   assert.equal((await service.getAdminStats(admin)).userCount, 3);
+});
+
+test("enrollment review and completion permissions fail closed by role and transition", async () => {
+  const repository = {
+    async createEnrollment() { return enrollmentRequest; },
+    async listEnrollmentRequestsForAdmin() { return [enrollmentRequest]; },
+    async reviewEnrollment() { return false; },
+    async setResourceCompletion() { return false; },
+  };
+  const client = { async query() { return result(); }, release() {} };
+  const pool = { async query() { return result(); }, async connect() { return client; } };
+  const service = new WorkspaceService({ pool, repositoryFactory: () => repository, now: () => at });
+
+  await assert.rejects(service.listEnrollmentRequests(student), error => error.code === "FORBIDDEN");
+  await assert.rejects(service.reviewEnrollment(student, enrollmentRequest.id, "approved", null), error => error.code === "FORBIDDEN");
+  await assert.rejects(service.reviewEnrollment(admin, enrollmentRequest.id, "rejected", ""), error => error.code === "VALIDATION_ERROR");
+  await assert.rejects(service.reviewEnrollment(admin, enrollmentRequest.id, "approved", null), error => error.code === "INVALID_TRANSITION");
+  await assert.rejects(service.setResourceCompletion(student, resourceId, true), error => error.code === "CONFLICT");
+  await assert.rejects(service.setResourceCompletion(admin, resourceId, true), error => error.code === "FORBIDDEN");
 });
 
 
